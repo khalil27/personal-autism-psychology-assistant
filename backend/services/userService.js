@@ -1,5 +1,6 @@
 const User = require("../models/User")
 const bcrypt = require("bcryptjs")
+const mongoose = require("mongoose")
 
 class UserService {
   // Create a new user
@@ -44,7 +45,7 @@ class UserService {
       if (is_active !== undefined) filter.is_active = is_active
 
       const users = await User.find(filter)
-        .limit(limit * 1)
+        .limit(limit)
         .skip((page - 1) * limit)
         .sort({ created_at: -1 })
 
@@ -53,10 +54,10 @@ class UserService {
       return {
         users,
         pagination: {
-          current_page: Number.parseInt(page),
+          current_page: Number(page),
           total_pages: Math.ceil(total / limit),
           total_users: total,
-          per_page: Number.parseInt(limit),
+          per_page: Number(limit),
         },
       }
     } catch (error) {
@@ -64,10 +65,13 @@ class UserService {
     }
   }
 
-  // Get user by ID
+  // Get user by ID (expects MongoDB ObjectId string)
   async getUserById(id) {
     try {
-      const user = await User.findOne({ id })
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid user id")
+      }
+      const user = await User.findById(id)
       if (!user) {
         throw new Error("User not found")
       }
@@ -87,24 +91,28 @@ class UserService {
     }
   }
 
-  // Update user
+  // Update user by ID
   async updateUser(id, updateData) {
     try {
-      // Check if email is being updated and if it already exists
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid user id")
+      }
+
+      // Check if email is being updated and if it already exists in another user
       if (updateData.email) {
         const existingUser = await User.findOne({
           email: updateData.email,
-          id: { $ne: id },
+          _id: { $ne: id },
         })
         if (existingUser) {
           throw new Error("Another user with this email already exists")
         }
       }
 
-      const user = await User.findOneAndUpdate(
-        { id },
+      const user = await User.findByIdAndUpdate(
+        id,
         { ...updateData, updated_at: new Date() },
-        { new: true, runValidators: true },
+        { new: true, runValidators: true }
       )
 
       if (!user) {
@@ -117,10 +125,13 @@ class UserService {
     }
   }
 
-  // Delete user
+  // Delete user by ID
   async deleteUser(id) {
     try {
-      const user = await User.findOneAndDelete({ id })
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid user id")
+      }
+      const user = await User.findByIdAndDelete(id)
       if (!user) {
         throw new Error("User not found")
       }
@@ -130,10 +141,17 @@ class UserService {
     }
   }
 
-  // Update last login
+  // Update last login timestamp
   async updateLastLogin(id) {
     try {
-      const user = await User.findOneAndUpdate({ id }, { last_login_at: new Date() }, { new: true })
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid user id")
+      }
+      const user = await User.findByIdAndUpdate(
+        id,
+        { last_login_at: new Date() },
+        { new: true }
+      )
       return user
     } catch (error) {
       throw error

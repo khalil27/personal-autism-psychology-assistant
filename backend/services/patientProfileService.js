@@ -1,3 +1,4 @@
+const mongoose = require("mongoose")
 const PatientProfile = require("../models/PatientProfile")
 const User = require("../models/User")
 
@@ -5,8 +6,13 @@ class PatientProfileService {
   // Create patient profile
   async createPatientProfile(profileData) {
     try {
-      // Verify user exists and is a patient
-      const user = await User.findOne({ id: profileData.user_id })
+      // Valider user_id
+      if (!mongoose.Types.ObjectId.isValid(profileData.user_id)) {
+        throw new Error("Invalid user_id")
+      }
+
+      // Vérifier si user existe et est patient
+      const user = await User.findById(profileData.user_id)
       if (!user) {
         throw new Error("User not found")
       }
@@ -14,7 +20,7 @@ class PatientProfileService {
         throw new Error("User must have patient role to create a patient profile")
       }
 
-      // Check if profile already exists
+      // Vérifier si profile existe déjà
       const existingProfile = await PatientProfile.findOne({ user_id: profileData.user_id })
       if (existingProfile) {
         throw new Error("Patient profile already exists for this user")
@@ -62,9 +68,13 @@ class PatientProfileService {
   // Get patient profile by user ID
   async getPatientProfileByUserId(userId) {
     try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error("Invalid user id")
+      }
+
       const profile = await PatientProfile.findOne({ user_id: userId }).populate(
         "user_id",
-        "name last_name email is_active",
+        "name last_name email is_active"
       )
 
       if (!profile) {
@@ -80,10 +90,14 @@ class PatientProfileService {
   // Update patient profile
   async updatePatientProfile(userId, updateData) {
     try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error("Invalid user id")
+      }
+
       const profile = await PatientProfile.findOneAndUpdate(
         { user_id: userId },
         { ...updateData, updated_at: new Date() },
-        { new: true, runValidators: true },
+        { new: true, runValidators: true }
       ).populate("user_id", "name last_name email")
 
       if (!profile) {
@@ -99,6 +113,10 @@ class PatientProfileService {
   // Delete patient profile
   async deletePatientProfile(userId) {
     try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error("Invalid user id")
+      }
+
       const profile = await PatientProfile.findOneAndDelete({ user_id: userId })
       if (!profile) {
         throw new Error("Patient profile not found")
@@ -125,7 +143,10 @@ class PatientProfileService {
   // Get profiles by occupation
   async getProfilesByOccupation(occupation) {
     try {
-      const profiles = await PatientProfile.find({ occupation }).populate("user_id", "name last_name email")
+      const profiles = await PatientProfile.find({ occupation }).populate(
+        "user_id",
+        "name last_name email"
+      )
 
       return profiles
     } catch (error) {

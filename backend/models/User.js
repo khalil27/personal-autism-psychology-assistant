@@ -1,14 +1,8 @@
 const mongoose = require("mongoose")
-const { v4: uuidv4 } = require("uuid")
+const bcrypt = require("bcryptjs")
 
 const userSchema = new mongoose.Schema(
   {
-    id: {
-      type: String,
-      default: uuidv4,
-      unique: true,
-      required: true,
-    },
     name: {
       type: String,
       required: true,
@@ -56,16 +50,16 @@ const userSchema = new mongoose.Schema(
     },
     toJSON: {
       transform: (doc, ret) => {
+        ret.id = ret._id
         delete ret._id
         delete ret.__v
         delete ret.password_hash
         return ret
       },
     },
-  },
+  }
 )
 
-// Index for better query performance
 userSchema.index({ role: 1 })
 userSchema.index({ is_active: 1 })
 
