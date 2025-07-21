@@ -5,7 +5,7 @@ const helmet = require("helmet")
 const rateLimit = require("express-rate-limit")
 require("dotenv").config()
 
-// Import routes
+// Import routes (routes will use services)
 const userRoutes = require("./routes/users")
 const patientProfileRoutes = require("./routes/patientProfiles")
 const sessionRoutes = require("./routes/sessions")

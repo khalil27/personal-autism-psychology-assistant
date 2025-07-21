@@ -1,5 +1,4 @@
-const User = require("../models/User")
-const bcrypt = require("bcryptjs")
+const userService = require("../services/userService")
 const Joi = require("joi")
 
 // Validation schema
@@ -30,31 +29,7 @@ exports.createUser = async (req, res) => {
       })
     }
 
-    const { name, last_name, email, password, role } = value
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email })
-    if (existingUser) {
-      return res.status(409).json({
-        error: "User already exists",
-        message: "A user with this email already exists",
-      })
-    }
-
-    // Hash password
-    const saltRounds = 12
-    const password_hash = await bcrypt.hash(password, saltRounds)
-
-    // Create user
-    const user = new User({
-      name,
-      last_name,
-      email,
-      password_hash,
-      role,
-    })
-
-    await user.save()
+    const user = await userService.createUser(value)
 
     res.status(201).json({
       message: "User created successfully",
@@ -62,6 +37,14 @@ exports.createUser = async (req, res) => {
     })
   } catch (error) {
     console.error("Create user error:", error)
+
+    if (error.message === "User with this email already exists") {
+      return res.status(409).json({
+        error: "User already exists",
+        message: error.message,
+      })
+    }
+
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to create user",
@@ -72,29 +55,8 @@ exports.createUser = async (req, res) => {
 // Get all users
 exports.getAllUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, role, is_active } = req.query
-
-    // Build filter object
-    const filter = {}
-    if (role) filter.role = role
-    if (is_active !== undefined) filter.is_active = is_active === "true"
-
-    const users = await User.find(filter)
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .sort({ created_at: -1 })
-
-    const total = await User.countDocuments(filter)
-
-    res.status(200).json({
-      users,
-      pagination: {
-        current_page: Number.parseInt(page),
-        total_pages: Math.ceil(total / limit),
-        total_users: total,
-        per_page: Number.parseInt(limit),
-      },
-    })
+    const result = await userService.getAllUsers(req.query)
+    res.status(200).json(result)
   } catch (error) {
     console.error("Get all users error:", error)
     res.status(500).json({
@@ -107,19 +69,18 @@ exports.getAllUsers = async (req, res) => {
 // Get user by ID
 exports.getUserById = async (req, res) => {
   try {
-    const { id } = req.params
+    const user = await userService.getUserById(req.params.id)
+    res.status(200).json({ user })
+  } catch (error) {
+    console.error("Get user by ID error:", error)
 
-    const user = await User.findOne({ id })
-    if (!user) {
+    if (error.message === "User not found") {
       return res.status(404).json({
         error: "User not found",
         message: "No user found with the provided ID",
       })
     }
 
-    res.status(200).json({ user })
-  } catch (error) {
-    console.error("Get user by ID error:", error)
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to fetch user",
@@ -130,8 +91,6 @@ exports.getUserById = async (req, res) => {
 // Update user
 exports.updateUser = async (req, res) => {
   try {
-    const { id } = req.params
-
     const { error, value } = updateUserValidationSchema.validate(req.body)
     if (error) {
       return res.status(400).json({
@@ -140,29 +99,7 @@ exports.updateUser = async (req, res) => {
       })
     }
 
-    // Check if email is being updated and if it already exists
-    if (value.email) {
-      const existingUser = await User.findOne({ email: value.email, id: { $ne: id } })
-      if (existingUser) {
-        return res.status(409).json({
-          error: "Email already exists",
-          message: "Another user with this email already exists",
-        })
-      }
-    }
-
-    const user = await User.findOneAndUpdate(
-      { id },
-      { ...value, updated_at: new Date() },
-      { new: true, runValidators: true },
-    )
-
-    if (!user) {
-      return res.status(404).json({
-        error: "User not found",
-        message: "No user found with the provided ID",
-      })
-    }
+    const user = await userService.updateUser(req.params.id, value)
 
     res.status(200).json({
       message: "User updated successfully",
@@ -170,6 +107,21 @@ exports.updateUser = async (req, res) => {
     })
   } catch (error) {
     console.error("Update user error:", error)
+
+    if (error.message === "User not found") {
+      return res.status(404).json({
+        error: "User not found",
+        message: "No user found with the provided ID",
+      })
+    }
+
+    if (error.message === "Another user with this email already exists") {
+      return res.status(409).json({
+        error: "Email already exists",
+        message: error.message,
+      })
+    }
+
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to update user",
@@ -180,15 +132,7 @@ exports.updateUser = async (req, res) => {
 // Delete user
 exports.deleteUser = async (req, res) => {
   try {
-    const { id } = req.params
-
-    const user = await User.findOneAndDelete({ id })
-    if (!user) {
-      return res.status(404).json({
-        error: "User not found",
-        message: "No user found with the provided ID",
-      })
-    }
+    const user = await userService.deleteUser(req.params.id)
 
     res.status(200).json({
       message: "User deleted successfully",
@@ -196,6 +140,14 @@ exports.deleteUser = async (req, res) => {
     })
   } catch (error) {
     console.error("Delete user error:", error)
+
+    if (error.message === "User not found") {
+      return res.status(404).json({
+        error: "User not found",
+        message: "No user found with the provided ID",
+      })
+    }
+
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to delete user",

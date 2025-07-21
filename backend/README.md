@@ -24,6 +24,32 @@ A Node.js + Express backend API for the Personal Autism & Psychology Assistant a
 - **Security**: Helmet, CORS, express-rate-limit
 - **Environment**: dotenv
 
+## Architecture
+
+The application follows a layered architecture pattern:
+
+- **Models**: Mongoose schemas defining the data structure
+- **Services**: Business logic layer that handles data operations
+- **Controllers**: HTTP request/response handling and validation
+- **Routes**: API endpoint definitions
+
+### Service Layer
+
+Each model has a corresponding service that encapsulates business logic:
+
+- `userService.js` - User management operations
+- `patientProfileService.js` - Patient profile operations  
+- `sessionService.js` - Session management operations
+- `reportService.js` - Report generation and management
+- `notificationService.js` - Notification system operations
+- `actionLogService.js` - Activity logging operations
+
+Services provide:
+- Data validation and business rules
+- Complex queries and data aggregation
+- Error handling and logging
+- Reusable methods across controllers
+
 ## Installation
 
 1. Clone the repository
@@ -87,6 +113,42 @@ The application uses 6 main collections:
 4. **reports** - Session reports and summaries
 5. **notifications** - User notifications
 6. **action_logs** - System activity logs
+
+## Project Structure
+
+\`\`\`
+├── config/
+│   └── database.js          # Database connection configuration
+├── controllers/             # HTTP request handlers
+│   ├── userController.js
+│   └── patientProfileController.js
+├── models/                  # Mongoose schemas
+│   ├── User.js
+│   ├── PatientProfile.js
+│   ├── Session.js
+│   ├── Report.js
+│   ├── Notification.js
+│   └── ActionLog.js
+├── routes/                  # API route definitions
+│   ├── users.js
+│   ├── patientProfiles.js
+│   ├── sessions.js
+│   ├── reports.js
+│   ├── notifications.js
+│   └── actionLogs.js
+├── services/                # Business logic layer
+│   ├── userService.js
+│   ├── patientProfileService.js
+│   ├── sessionService.js
+│   ├── reportService.js
+│   ├── notificationService.js
+│   └── actionLogService.js
+├── .env.example            # Environment variables template
+├── .gitignore             # Git ignore rules
+├── package.json           # Dependencies and scripts
+├── server.js             # Application entry point
+└── README.md            # Project documentation
+\`\`\`
 
 ## Development
 
