@@ -143,6 +143,8 @@ The application uses 6 main collections:
 │   ├── reportService.js
 │   ├── notificationService.js
 │   └── actionLogService.js
+├── middlewares/
+│   └── authMiddleware.js
 ├── .env.example            # Environment variables template
 ├── .gitignore             # Git ignore rules
 ├── package.json           # Dependencies and scripts

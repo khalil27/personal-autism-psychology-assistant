@@ -12,6 +12,7 @@ const sessionRoutes = require("./routes/sessions")
 const reportRoutes = require("./routes/reports")
 const notificationRoutes = require("./routes/notifications")
 const actionLogRoutes = require("./routes/actionLogs")
+const authRoutes = require("./routes/auth");
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -31,6 +32,11 @@ app.use(limiter)
 app.use(express.json({ limit: "10mb" }))
 app.use(express.urlencoded({ extended: true }))
 
+// cookie-parser
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
+
 // MongoDB connection
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -49,6 +55,7 @@ app.use("/api/sessions", sessionRoutes)
 app.use("/api/reports", reportRoutes)
 app.use("/api/notifications", notificationRoutes)
 app.use("/api/action-logs", actionLogRoutes)
+app.use("/api/auth", authRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
