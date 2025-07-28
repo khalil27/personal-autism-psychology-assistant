@@ -1,20 +1,27 @@
-const express = require("express")
-const router = express.Router()
-const patientProfileController = require("../controllers/patientProfileController")
+const express = require("express");
+const router = express.Router();
+const patientProfileController = require("../controllers/patientProfileController");
+const { authenticateToken, authorizeRoles } = require("../middlewares/authMiddleware");
 
-// GET /api/patient-profiles - Get all patient profiles
-router.get("/", patientProfileController.getAllPatientProfiles)
+// GET all profiles — admin & doctor only
+router.get("/", authenticateToken, authorizeRoles("admin", "doctor"), patientProfileController.getAllPatientProfiles);
 
-// GET /api/patient-profiles/:userId - Get patient profile by user ID
-router.get("/:userId", patientProfileController.getPatientProfileByUserId)
+// GET one profile — owner, doctor (if assigned), or admin
+router.get("/:userId", authenticateToken, patientProfileController.getPatientProfileByUserId);
 
-// POST /api/patient-profiles - Create patient profile
-router.post("/", patientProfileController.createPatientProfile)
+// POST create profile — patient or admin
+router.post("/", authenticateToken, authorizeRoles("patient", "admin"), patientProfileController.createPatientProfile);
 
-// PUT /api/patient-profiles/:userId - Update patient profile
-router.put("/:userId", patientProfileController.updatePatientProfile)
+// PUT update profile — owner or admin
+router.put("/:userId", authenticateToken, (req, res, next) => {
+  const userId = req.params.userId;
+  const { id, role } = req.user;
+  if (role === "admin" || id === userId) return next();
+  res.status(403).json({ message: "Forbidden" });
+}, patientProfileController.updatePatientProfile);
 
-// DELETE /api/patient-profiles/:userId - Delete patient profile
-router.delete("/:userId", patientProfileController.deletePatientProfile)
+// DELETE profile — admin only
+router.delete("/:userId", authenticateToken, authorizeRoles("admin"), patientProfileController.deletePatientProfile);
 
-module.exports = router
+module.exports = router;
+

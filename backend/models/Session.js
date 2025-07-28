@@ -1,5 +1,5 @@
-const mongoose = require("mongoose")
-const { v4: uuidv4 } = require("uuid")
+const mongoose = require("mongoose");
+const { v4: uuidv4 } = require("uuid");
 
 const sessionSchema = new mongoose.Schema(
   {
@@ -29,9 +29,8 @@ const sessionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "completed", "canceled"],
-      required: true,
-      default: "active",
+      enum: ["pending", "active", "completed", "canceled"],
+      default: "pending",
     },
     audio_transcript: {
       type: String,
@@ -45,18 +44,18 @@ const sessionSchema = new mongoose.Schema(
     },
     toJSON: {
       transform: (doc, ret) => {
-        delete ret._id
-        delete ret.__v
-        return ret
+        delete ret._id;
+        delete ret.__v;
+        return ret;
       },
     },
-  },
-)
+  }
+);
 
 // Indexes for better query performance
-sessionSchema.index({ patient_id: 1 })
-sessionSchema.index({ doctor_id: 1 })
-sessionSchema.index({ status: 1 })
-sessionSchema.index({ start_time: 1 })
+sessionSchema.index({ patient_id: 1 });
+sessionSchema.index({ doctor_id: 1 });
+sessionSchema.index({ status: 1 });
+sessionSchema.index({ start_time: 1 });
 
-module.exports = mongoose.model("Session", sessionSchema)
+module.exports = mongoose.model("Session", sessionSchema);
