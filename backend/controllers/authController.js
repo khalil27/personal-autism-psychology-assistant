@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const userService = require('../services/userService');
 
 const SECRET_KEY = process.env.JWT_SECRET || "super_secret_key";
 
@@ -16,21 +17,30 @@ exports.login = async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, role: user.role },
-      SECRET_KEY,
+      process.env.JWT_SECRET || "your-secret-key",
       { expiresIn: "1h" }
     );
 
-    res.cookie("token", token, {
+    // ✅ Envoyer le token dans un cookie HttpOnly
+    res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 60 * 60 * 1000, // 1 heure
+      secure: false, // à mettre `true` en production avec HTTPS
+      sameSite: 'Lax',
+      maxAge: 3600000, // 1h
     });
 
-    res.json({ message: "Logged in successfully" });
+    res.status(200).json({
+      message: "Logged in successfully",
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role
+      }
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Login error", err);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -60,5 +70,28 @@ exports.logout = (req, res) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+exports.getMe = (req, res) => {
+  try {
+    const token = req.cookies.token;
+
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    const decoded = jwt.verify(token, SECRET_KEY);
+
+    // Tu peux ici soit juste retourner le contenu du token,
+    // soit aller chercher les infos en base si tu veux + de détails
+    res.status(200).json({
+      id: decoded.id,
+      role: decoded.role,
+    });
+
+  } catch (err) {
+    console.error("Error in getMe:", err);
+    res.status(401).json({ message: "Invalid or expired token" });
   }
 };

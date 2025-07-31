@@ -19,7 +19,12 @@ const PORT = process.env.PORT || 3000
 
 // Security middleware
 app.use(helmet())
-app.use(cors())
+// CORS - Autoriser les requêtes cross-origin avec cookies
+app.use(cors({
+  origin: "http://localhost:5173",  // autorise uniquement cette origine
+  credentials: true                 // permet les cookies avec withCredentials
+}))
+
 
 // Rate limiting
 const limiter = rateLimit({
