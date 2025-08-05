@@ -35,14 +35,15 @@ const PatientSessions: React.FC = () => {
   };
 
   const loadDoctors = async () => {
-    try {
-      const data = await usersAPI.getAll();
-      const doctorList = data.filter(u => u.role === 'doctor');
-      setDoctors(doctorList);
-    } catch (error) {
-      console.error('Failed to load doctors:', error);
-    }
-  };
+  try {
+    const doctorList = await usersAPI.getDoctors();
+    setDoctors(doctorList);
+  } catch (error) {
+    console.error('Failed to load doctors:', error);
+  }
+};
+
+
 
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();

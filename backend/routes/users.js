@@ -12,12 +12,6 @@ router.post("/", authenticateToken, authorizeRoles("admin", "doctor"), userContr
 // Seul l'admin peut accéder à la liste complète
 router.get("/", authenticateToken, authorizeRoles("admin"), userController.getAllUsers);
 
-// -- Détails d'un utilisateur par ID --
-// Tout utilisateur authentifié peut accéder à son propre profil
-// Le doctor peut accéder à ses patients (vérifié dans le controller)
-// L'admin peut accéder à tout
-router.get("/:id", authenticateToken, userController.getUserById);
-
 // -- Mise à jour d'un utilisateur par ID --
 // Même logique que pour la lecture : vérification dans le controller de qui peut modifier quoi
 router.put("/:id", authenticateToken, userController.updateUser);
@@ -25,5 +19,15 @@ router.put("/:id", authenticateToken, userController.updateUser);
 // -- Suppression d'un utilisateur par ID --
 // Réservé aux admins
 router.delete("/:id", authenticateToken, authorizeRoles("admin"), userController.deleteUser);
+
+// ✅ Route pour les patients : lister les médecins
+router.get("/doctors", authenticateToken, authorizeRoles("admin", "doctor", "patient"), userController.getAllDoctors);
+
+// -- Détails d'un utilisateur par ID --
+// Tout utilisateur authentifié peut accéder à son propre profil
+// Le doctor peut accéder à ses patients (vérifié dans le controller)
+// L'admin peut accéder à tout
+router.get("/:id", authenticateToken, userController.getUserById);
+
 
 module.exports = router;

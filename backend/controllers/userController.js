@@ -154,3 +154,15 @@ exports.deleteUser = async (req, res) => {
     })
   }
 }
+
+// Get user by role
+exports.getAllDoctors = async (req, res) => {
+  try {
+    const doctors = await userService.getUsersByRole("doctor");
+    res.status(200).json({ doctors });
+  } catch (error) {
+    console.error("Failed to fetch doctors:", error);
+    res.status(500).json({ message: "Failed to fetch doctors" });
+  }
+};
+

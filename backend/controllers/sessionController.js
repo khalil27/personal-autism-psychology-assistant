@@ -2,14 +2,21 @@ const sessionService = require("../services/sessionService");
 
 exports.createSession = async (req, res) => {
   try {
+    console.log("user:", req.user);
+    console.log("sessionData:", req.body);
     const sessionData = req.body;
 
+    if (!req.user) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        details: "User not authenticated",
+      });
+    }
+
     if (req.user.role === "patient") {
-      // Patient ne peut pas choisir un autre patient_id
       sessionData.patient_id = req.user.id;
       sessionData.status = "pending";
     } else if (req.user.role === "doctor" || req.user.role === "admin") {
-      // par défaut active pour doctor/admin
       sessionData.status = "active";
     }
 
@@ -26,3 +33,4 @@ exports.createSession = async (req, res) => {
     });
   }
 };
+

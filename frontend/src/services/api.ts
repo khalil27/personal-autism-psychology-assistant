@@ -65,6 +65,12 @@ export const usersAPI = {
   delete: async (id: string): Promise<void> => {
     await api.delete(`/users/${id}`);
   },
+  
+   // GET /users/doctors (admin ou authentifié)
+  getDoctors: async (): Promise<User[]> => {
+    const res = await api.get('/users/doctors');
+    return res.data.doctors; // ou res.data.users selon la réponse du backend
+  },
 };
 
 // Patient Profiles API
@@ -97,6 +103,7 @@ export const patientProfilesAPI = {
   delete: async (userId: string): Promise<void> => {
     await api.delete(`/patient-profiles/${userId}`);
   },
+
 };
 
 // Sessions API

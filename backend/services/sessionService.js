@@ -3,26 +3,27 @@ const User = require("../models/User")
 
 class SessionService {
   // Create new session
-  async createSession(sessionData) {
-    try {
-      // Verify patient and doctor exist
-      const patient = await User.findOne({ id: sessionData.patient_id })
-      const doctor = await User.findOne({ id: sessionData.doctor_id })
+async createSession(sessionData) {
+  try {
+    // ✅ Corriger ici : utiliser _id au lieu de id
+    const patient = await User.findOne({ _id: sessionData.patient_id });
+    const doctor = await User.findOne({ _id: sessionData.doctor_id });
 
-      if (!patient || patient.role !== "patient") {
-        throw new Error("Invalid patient ID")
-      }
-      if (!doctor || doctor.role !== "doctor") {
-        throw new Error("Invalid doctor ID")
-      }
-
-      const session = new Session(sessionData)
-      await session.save()
-      return session
-    } catch (error) {
-      throw error
+    if (!patient || patient.role !== "patient") {
+      throw new Error("Invalid patient ID");
     }
+    if (!doctor || doctor.role !== "doctor") {
+      throw new Error("Invalid doctor ID");
+    }
+
+    const session = new Session(sessionData);
+    await session.save();
+    return session;
+  } catch (error) {
+    throw error;
   }
+}
+
 
   // Get all sessions with filtering
   async getAllSessions(options = {}) {
@@ -67,7 +68,7 @@ class SessionService {
   // Get session by ID
   async getSessionById(id) {
     try {
-      const session = await Session.findOne({ id })
+      const session = await Session.findOne({ _id: id })
         .populate("patient_id", "name last_name email")
         .populate("doctor_id", "name last_name email")
 
@@ -85,7 +86,7 @@ class SessionService {
   async updateSession(id, updateData) {
     try {
       const session = await Session.findOneAndUpdate(
-        { id },
+        { _id: id },
         { ...updateData, updated_at: new Date() },
         { new: true, runValidators: true },
       )
@@ -106,7 +107,7 @@ class SessionService {
   async endSession(id) {
     try {
       const session = await Session.findOneAndUpdate(
-        { id },
+        { _id: id },
         {
           status: "completed",
           end_time: new Date(),
@@ -129,7 +130,7 @@ class SessionService {
   async cancelSession(id) {
     try {
       const session = await Session.findOneAndUpdate(
-        { id },
+        { _id: id },
         {
           status: "canceled",
           updated_at: new Date(),

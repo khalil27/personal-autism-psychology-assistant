@@ -30,16 +30,15 @@ export interface PatientProfile {
 
 export interface Session {
   id: string;
-  patient_id: string;
-  doctor_id: string;
+  patient_id: string | User; // ✅ peut être une string ou un objet User
+  doctor_id: string | User;  // ✅ idem
   start_time: string;
   end_time: string;
   status: SessionStatus;
   audio_transcript?: string;
   created_at: string;
-  patient?: User;
-  doctor?: User;
 }
+
 
 export interface Report {
   id: string;
