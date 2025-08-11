@@ -37,6 +37,8 @@ export interface Session {
   status: SessionStatus;
   audio_transcript?: string;
   created_at: string;
+  doctor?: User;
+  patient?: User;
 }
 
 

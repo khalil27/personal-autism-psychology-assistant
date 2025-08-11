@@ -12,7 +12,7 @@ const Register: React.FC = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'patient' as UserRole,
+    role: 'patient' as UserRole, // par défaut patient
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -154,7 +154,7 @@ const Register: React.FC = () => {
             </div>
 
             {/* Role field */}
-            {/*<div>
+            {<div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
                 Role
               </label>
@@ -169,7 +169,7 @@ const Register: React.FC = () => {
                 <option value="doctor">Doctor</option>
                 <option value="admin">Admin</option>
               </select>
-            </div>*/}
+            </div>}
 
             {/* Password fields */}
             <div>

@@ -31,7 +31,7 @@ router.post("/", authenticateToken, authorizeRoles("doctor", "patient"), session
 // ✅ PUT /api/sessions/:id - Mettre à jour une session (doctor/admin)
 router.put("/:id", authenticateToken, authorizeRoles("admin", "doctor"), async (req, res) => {
   try {
-    const session = await Session.findOneAndUpdate({ _id: req.params.id }, req.body, { new: true, runValidators: true });
+    const session = await Session.findOneAndUpdate({ id: req.params.id }, req.body, { new: true, runValidators: true });
 
     if (!session) {
       return res.status(404).json({ error: "Session not found" });

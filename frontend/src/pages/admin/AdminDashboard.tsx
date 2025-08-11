@@ -14,8 +14,14 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    // Si user est défini et que c'est un admin, charger les données
+    if (user?.role === 'admin') {
+      loadDashboardData();
+    } else {
+      // Sinon, on peut arrêter le chargement (ou faire autre chose)
+      setLoading(false);
+    }
+  }, [user]);
 
   const loadDashboardData = async () => {
     try {

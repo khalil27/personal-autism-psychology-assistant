@@ -25,7 +25,12 @@ const PatientSessions: React.FC = () => {
   const loadSessions = async () => {
     try {
       const data = await sessionsAPI.getAll();
-      const patientSessions = data.filter(s => s.patient_id === user?.id);
+      const patientSessions = data.filter((s) => {
+      if (typeof s.patient_id === "string") {
+        return s.patient_id === user?.id;
+      }
+      return s.patient_id.id === user?.id;
+    });
       setSessions(patientSessions);
     } catch (error) {
       console.error('Failed to load sessions:', error);

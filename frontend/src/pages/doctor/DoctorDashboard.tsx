@@ -25,8 +25,16 @@ const DoctorDashboard: React.FC = () => {
       ]);
       
       // Filter sessions for current doctor
-      const doctorSessions = sessionsData.filter(s => s.doctor_id === user?.id);
-      setSessions(doctorSessions);
+      const doctorSessions = sessionsData.filter(s => {
+  if (typeof s.doctor_id === 'string') {
+    return s.doctor_id === user?.id;
+  } else if (typeof s.doctor_id === 'object') {
+    return s.doctor_id.id === user?.id;
+  }
+  return false;
+});
+
+setSessions(doctorSessions);
       
       // Filter reports for doctor's sessions
       const sessionIds = doctorSessions.map(s => s.id);
@@ -64,7 +72,7 @@ const DoctorDashboard: React.FC = () => {
   const pendingSessions = sessions.filter(s => s.status === 'pending');
   const upcomingSessions = sessions.filter(s => s.status === 'active');
   const completedSessions = sessions.filter(s => s.status === 'completed');
-  const pendingReports = reports.filter(r => !r.notified_to_doctor);
+  //const pendingReports = reports.filter(r => !r.notified_to_doctor);
 
   const getStatusColor = (status: string) => {
     switch (status) {
