@@ -11,14 +11,15 @@ const PatientProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    age: 0,
-    gender: 'male' as Gender,
-    occupation: '',
-    education_level: '',
-    marital_status: '',
-    notes: '',
-  });
+ const [formData, setFormData] = useState({
+  age: 0,
+  gender: 'male' as Gender,
+  occupation: 'other' as "student" | "employed" | "unemployed" | "other",
+  education_level: 'Not specified',
+  marital_status: 'Not specified',
+  notes: '',
+});
+
 
   useEffect(() => {
     loadProfile();
@@ -31,13 +32,18 @@ const PatientProfilePage: React.FC = () => {
       const profileData = await patientProfilesAPI.getByUserId(user.id);
       setProfile(profileData);
       setFormData({
-        age: profileData.age,
-        gender: profileData.gender,
-        occupation: profileData.occupation,
-        education_level: profileData.education_level,
-        marital_status: profileData.marital_status,
-        notes: profileData.notes,
-      });
+      age: profileData.age,
+      gender: ["male","female","other"].includes(profileData.gender) 
+    ? (profileData.gender as Gender) 
+    : "male",
+      occupation: ["student", "employed", "unemployed", "other"].includes(profileData.occupation)
+        ? (profileData.occupation as "student" | "employed" | "unemployed" | "other")
+        : "other",
+      education_level: profileData.education_level,
+      marital_status: profileData.marital_status,
+      notes: profileData.notes,
+    });
+
     } catch (error) {
       console.error('Failed to load profile:', error);
       // If profile doesn't exist, create a default one
@@ -48,12 +54,16 @@ const PatientProfilePage: React.FC = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const value = e.target.type === 'number' ? parseInt(e.target.value) : e.target.value;
-    setFormData({
-      ...formData,
-      [e.target.name]: value,
-    });
-  };
+  let value: string | number = e.target.value;
+  if (e.target.type === 'number') {
+    value = e.target.value === '' ? 0 : parseInt(e.target.value);
+  }
+  setFormData({
+    ...formData,
+    [e.target.name]: value,
+  });
+};
+
 
   const handleSave = async () => {
     if (!user) return;
@@ -78,18 +88,22 @@ const PatientProfilePage: React.FC = () => {
   };
 
   const handleCancel = () => {
-    if (profile) {
-      setFormData({
-        age: profile.age,
-        gender: profile.gender,
-        occupation: profile.occupation,
-        education_level: profile.education_level,
-        marital_status: profile.marital_status,
-        notes: profile.notes,
-      });
-    }
-    setEditing(false);
-  };
+  if (profile) {
+    setFormData({
+      age: profile.age,
+      gender: ["male", "female", "other"].includes(profile.gender)
+        ? (profile.gender as Gender)
+        : "male",
+      occupation: ["student", "employed", "unemployed", "other"].includes(profile.occupation)
+        ? (profile.occupation as "student" | "employed" | "unemployed" | "other")
+        : "other",
+      education_level: profile.education_level,
+      marital_status: profile.marital_status,
+      notes: profile.notes,
+    });
+  }
+  setEditing(false);
+};
 
   if (loading) {
     return (
@@ -188,18 +202,22 @@ const PatientProfilePage: React.FC = () => {
                 Occupation
               </label>
               {editing ? (
-                <input
-                  type="text"
+                <select
                   name="occupation"
                   value={formData.occupation}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter your occupation"
-                />
+                >
+                  <option value="student">Student</option>
+                  <option value="employed">Employed</option>
+                  <option value="unemployed">Unemployed</option>
+                  <option value="other">Other</option>
+                </select>
               ) : (
-                <p className="text-gray-900">{profile?.occupation || 'Not specified'}</p>
+                <p className="text-gray-900 capitalize">{profile?.occupation || 'Not specified'}</p>
               )}
             </div>
+
 
             {/* Education Level */}
             <div>

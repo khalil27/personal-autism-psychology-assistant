@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const userService = require('../services/userService');
+const notificationService = require('../services/notificationService');
 
 const SECRET_KEY = process.env.JWT_SECRET || "super_secret_key";
 
@@ -54,15 +55,22 @@ exports.logout = (req, res) => {
 };
 
 // Inscription publique pour patient
- exports.register = async (req, res, next) => {
+exports.register = async (req, res, next) => {
   try {
     const { name, last_name, email, password } = req.body;
 
-    // Forcer le rôle à 'patient' pour toute inscription publique
+    // Forcer le rôle à 'patient'
     const role = "patient";
 
-    // Appel à service pour créer utilisateur
+    // Création utilisateur
     const user = await userService.createUser({ name, last_name, email, password, role });
+
+    // ✅ Création automatique d'une notification
+    await notificationService.createNotification({
+      user_id: user.id, // ⚠ ici on utilise bien user.id et non _id car ton modèle l'a défini comme String id
+      type: "info",
+      message: "Merci de compléter votre profil patient.",
+    });
 
     res.status(201).json({
       message: "Patient account created successfully",
@@ -72,6 +80,7 @@ exports.logout = (req, res) => {
     next(error);
   }
 };
+
 
 exports.getMe = (req, res) => {
   try {

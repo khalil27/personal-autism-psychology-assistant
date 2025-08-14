@@ -197,7 +197,14 @@ const Layout: React.FC = () => {
                 </button>
 
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border z-50">
+                  <div
+    className="
+      absolute 
+      mt-2 w-80 min-w-[20rem] bg-white rounded-lg shadow-lg border z-50
+      right-0                /* mobile: aligner à droite */
+      lg:left-0 lg:translate-x-0 /* desktop: aligner à gauche */
+    "
+  >
                     <div className="p-4 border-b">
                       <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
                     </div>
@@ -213,6 +220,27 @@ const Layout: React.FC = () => {
                             className={`p-4 border-b hover:bg-gray-50 ${
                               !notification.is_read ? 'bg-blue-50' : ''
                             }`}
+                            onClick={async () => {
+      try {
+        // Marquer comme lue
+        await notificationsAPI.markAsRead(notification.id);
+
+        // Rediriger vers My Profile
+        navigate('/patient/profile'); // ou '/my-profile' selon ton route
+
+        // Optionnel : fermer le panneau de notif
+        setShowNotifications(false);
+
+        // Mettre à jour l'état local pour retirer la couleur de fond
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notification.id ? { ...n, is_read: true } : n
+          )
+        );
+      } catch (error) {
+        console.error('Failed to mark notification as read', error);
+      }
+    }}
                           >
                             <p className="text-sm text-gray-900">{notification.message}</p>
                             <p className="text-xs text-gray-500 mt-1">

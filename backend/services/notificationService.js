@@ -6,7 +6,7 @@ class NotificationService {
   async createNotification(notificationData) {
     try {
       // Verify user exists
-      const user = await User.findOne({ id: notificationData.user_id })
+      const user = await User.findById(notificationData.user_id)
       if (!user) {
         throw new Error("User not found")
       }
@@ -52,7 +52,9 @@ class NotificationService {
   // Get notification by ID
   async getNotificationById(id) {
     try {
-      const notification = await Notification.findOne({ id }).populate("user_id", "name last_name email")
+      const notification = await Notification.findById(id)
+  .populate("user_id", "name last_name email")
+
 
       if (!notification) {
         throw new Error("Notification not found")
@@ -67,14 +69,15 @@ class NotificationService {
   // Mark notification as read
   async markAsRead(id) {
     try {
-      const notification = await Notification.findOneAndUpdate(
-        { id },
-        {
-          is_read: true,
-          updated_at: new Date(),
-        },
-        { new: true },
-      )
+      const notification = await Notification.findByIdAndUpdate(
+  id,
+  {
+    is_read: true,
+    updated_at: new Date(),
+  },
+  { new: true },
+)
+
 
       if (!notification) {
         throw new Error("Notification not found")
@@ -120,7 +123,7 @@ class NotificationService {
   // Delete notification
   async deleteNotification(id) {
     try {
-      const notification = await Notification.findOneAndDelete({ id })
+      const notification = await Notification.findByIdAndDelete(id)
       if (!notification) {
         throw new Error("Notification not found")
       }
