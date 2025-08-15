@@ -34,17 +34,31 @@ exports.createSession = async (req, res) => {
   }
 };
 
-exports.acceptSession = async (req, res) => {
+exports.joinSession = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { sessionId } = req.params;
+    const patientId = req.user.id;
 
-    const result = await sessionService.acceptSession(id);
+    // 🔹 Log des données entrantes
+    console.log("Join request received:", { sessionId, patientId });
 
-    res.status(200).json(result);
-  } catch (error) {
-    res.status(400).json({
-      error: "Failed to accept session",
-      details: error.message,
+    const result = await sessionService.joinSession(sessionId, patientId);
+
+    // 🔹 Log du résultat du service
+    console.log("joinSession result:", result);
+
+    res.status(200).json({
+      message: "Room ready",
+      room_name: result.room_name,
+      join_token: result.join_token,
+      server_url: process.env.LIVEKIT_URL,
     });
+  } catch (error) {
+    // 🔹 Log de l'erreur
+    console.error("Failed to join session:", error.message, error.stack);
+
+    res.status(400).json({ error: error.message });
   }
 };
+
+

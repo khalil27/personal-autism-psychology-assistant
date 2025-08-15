@@ -101,6 +101,21 @@ const PatientSessions: React.FC = () => {
     }
   };
 
+  const handleJoinSession = async (sessionId: string) => {
+  try {
+    const res = await sessionsAPI.join(sessionId); 
+    const { room_name, join_token, server_url } = res;
+
+    // Rediriger vers le front LiveKit en encodant les paramètres
+    window.location.href = `/livekit-room?room=${encodeURIComponent(room_name)}&token=${encodeURIComponent(join_token)}&server=${encodeURIComponent(server_url)}`;
+  } catch (error) {
+    console.error('Failed to join session:', error);
+    alert('Impossible de rejoindre la session pour le moment.');
+  }
+};
+
+
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -174,6 +189,15 @@ const PatientSessions: React.FC = () => {
                           Waiting for doctor approval
                         </p>
                       )}
+                      {/* ✅ Bouton Join si la session est active */}
+            {session.status === 'active' && (
+              <button
+                className="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                onClick={() => handleJoinSession(session.id)}
+              >
+                Join
+              </button>
+            )}
                     </div>
                   </div>
                 </div>

@@ -29,6 +29,7 @@
     "jsonwebtoken": "^9.0.2",
     "livekit-server-sdk": "^2.13.2",
     "mongoose": "^8.0.3",
+    "node-fetch": "^2.7.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

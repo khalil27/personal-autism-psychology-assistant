@@ -43,12 +43,7 @@ router.put("/:id", authenticateToken, authorizeRoles("admin", "doctor"), async (
   }
 });
 
-// ✅ Accepter une session (doctor/admin)
-router.put(
-  "/:id/accept",
-  authenticateToken,
-  authorizeRoles("doctor", "admin"),
-  sessionController.acceptSession
-);
+router.post("/:sessionId/join", authenticateToken, authorizeRoles("patient"), sessionController.joinSession);
+
 
 module.exports = router;

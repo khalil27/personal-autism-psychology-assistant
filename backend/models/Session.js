@@ -36,6 +36,16 @@ const sessionSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // Ajout pour LiveKit
+    room_name: {
+      type: String,
+      default: null,
+    },
+    join_token: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: {

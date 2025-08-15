@@ -1,14 +1,9 @@
 const Session = require("../models/Session")
 const User = require("../models/User")
-const { RoomServiceClient, AccessToken } = require("livekit-server-sdk");
-const { spawn } = require("child_process");
+const { LiveKitServerSDK } = require('livekit-server-sdk');
+const fetch = require("node-fetch");
 require("dotenv").config()
 
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
-const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
-const LIVEKIT_URL = process.env.LIVEKIT_URL;
-
-const roomService = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
 
 class SessionService {
   // Create new session
@@ -197,47 +192,33 @@ async createSession(sessionData) {
     }
   }
 
-    async acceptSession(id) {
-    // 1. Récupérer la session
-    const session = await Session.findOne({ _id: id });
-    if (!session) throw new Error("Session not found");
+    async joinSession(sessionId, patientId) {
+  const session = await Session.findOne({ id: sessionId });
+  if (!session) throw new Error("Session not found");
+  if (session.patient_id.toString() !== patientId) throw new Error("Unauthorized");
+  if (session.status !== "active") throw new Error("Session not active");
 
-    // 2. Passer en "active"
-    session.status = "active";
-    await session.save();
+  // Nom de la room
+  const roomName = `session_${session.id}`;
 
-    // 3. Créer une room LiveKit
-    const roomName = `session_${session.id}`;
-    await roomService.createRoom({
-      name: roomName,
-      emptyTimeout: 300, // 5 min
-      maxParticipants: 2,
-    });
+  // Appel backend Python pour démarrer l'agent
+  const pythonUrl = process.env.PYTHON_BACKEND_URL + "/join-room";
+  console.log("Calling Python backend at:", pythonUrl);
+  const resp = await fetch(pythonUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ roomName }),
+  });
+  if (!resp.ok) throw new Error("Failed to start room");
 
-    // 4. Lancer ton backend Python avec le nom de la room
-    spawn("python", ["assistant.py"], {
-      env: {
-        ...process.env,
-        LIVEKIT_ROOM: roomName,
-      },
-      stdio: "inherit",
-    });
-
-    // 5. Générer un token JWT LiveKit pour le patient
-    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
-      identity: session.patient_id,
-    });
-    at.addGrant({ roomJoin: true, room: roomName });
-
-    const token = at.toJwt();
-
-    return {
-      message: "Session accepted",
-      room_name: roomName,
-      join_token: token,
-      session,
-    };
-  }
+  const data = await resp.json();
+  // data doit contenir participantToken et serverUrl
+  return {
+    room_name: roomName,
+    join_token: data.participantToken,
+    server_url: data.serverUrl,
+  };
+}
 }
 
 module.exports = new SessionService()

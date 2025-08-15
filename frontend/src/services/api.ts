@@ -2,7 +2,7 @@ import axios from 'axios';
 import { User, PatientProfile, Session, Report, Notification, ActionLog, RegisterData } from '../types';
 
 // Mock API base URL - in production this would be your actual API
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -127,6 +127,13 @@ export const sessionsAPI = {
     const res = await api.put(`/sessions/${id}`, data);
     return res.data.session;
   },
+
+  // POST /api/sessions/:id/join
+join: async (id: string): Promise<{ room_name: string; join_token: string; server_url: string }> => {
+  const res = await api.post(`/sessions/${id}/join`);
+  return res.data;
+},
+
 };
 
 // Reports API
