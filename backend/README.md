@@ -159,7 +159,7 @@ The application uses 6 main collections:
 
 ## Health Check
 
-Visit `http://localhost:3000/health` to check if the API is running.
+Visit `http://localhost:5000/health` to check if the API is running.
 
 ## Security Features
 
