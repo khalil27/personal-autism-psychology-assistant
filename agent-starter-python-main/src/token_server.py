@@ -1,32 +1,43 @@
-from fastapi import FastAPI, Query
-from fastapi.middleware.cors import CORSMiddleware
+import os
+from flask import Flask, request, jsonify
 from livekit import api
+from dotenv import load_dotenv 
 
-app = FastAPI()
+load_dotenv(".env.local")
 
-# ----------------- CORS -----------------
-origins = [
-    "http://localhost:3000",  # ton frontend React
-]
+app = Flask(__name__)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-# ---------------------------------------
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
+LIVEKIT_URL = os.getenv("LIVEKIT_URL")
 
-API_KEY = "APIiRSWjzSsmTXq"
-API_SECRET = "jSrWT2YS5QdBRVd5pkcKD9DiQ1TKARcBMejsTtj20e6"
+# 👉 1. Endpoint pour générer un token LiveKit
+@app.route("/getToken", methods=["POST"])
+def get_token():
+    data = request.json
+    room_name = data.get("room")
+    identity = data.get("identity")  # ex: l'ID patient
 
-ROOM_NAME = "test-room"  # <-- nom unique de la room
+    token = api.AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET) \
+        .with_identity(identity) \
+        .with_name(identity) \
+        .with_grants(api.VideoGrants(
+            room_join=True,
+            room=room_name,
+        ))
+    return jsonify({"token": token.to_jwt()})
 
-@app.get("/get_token")
-def get_token(identity: str = Query("mobile_user", description="Nom de l'utilisateur")):
-    # Crée un token LiveKit
-    at = api.AccessToken(API_KEY, API_SECRET)
-    at.identity = identity
-    at.video = api.VideoGrants(room=ROOM_NAME)
-    return {"token": at.to_jwt(), "room": ROOM_NAME, "identity": identity}
+
+# 👉 2. Endpoint pour créer une room (optionnel si tu veux les pré-créer)
+@app.route("/createRoom", methods=["POST"])
+def create_room():
+    data = request.json
+    room_name = data.get("room")
+
+    lk = api.LiveKitAPI(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+    room = lk.room.create(name=room_name)
+    return jsonify({"room": room.to_dict()})
+
+
+if __name__ == "__main__":
+    app.run(port=5001, debug=True)

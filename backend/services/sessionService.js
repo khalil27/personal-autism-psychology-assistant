@@ -192,32 +192,69 @@ async createSession(sessionData) {
     }
   }
 
-  async joinSession(sessionId, patientId) {
+async joinSession(sessionId, patientId) {
+  // 1️⃣ Récupérer la session
   const session = await Session.findOne({ id: sessionId });
   if (!session) throw new Error("Session not found");
-  if (session.patient_id.toString() !== patientId) throw new Error("Unauthorized");
+
+  // 2️⃣ Vérifier l'autorisation du patient
+  if (session.patient_id.toString() !== patientId)
+    throw new Error("Unauthorized");
+
+  // 3️⃣ Vérifier le statut de la session
   if (session.status !== "active") throw new Error("Session not active");
 
+  // 4️⃣ Créer un nom de room unique
   const roomName = `session_${session.id}`;
-  const pythonUrl = process.env.PYTHON_BACKEND_URL + "/join-room";
 
-  console.log("Calling Python backend at:", pythonUrl);
-  const resp = await fetch(pythonUrl, {
+  // 5️⃣ Appeler le backend Python pour générer le token LiveKit
+  const pythonTokenUrl = `${process.env.PYTHON_BACKEND_URL}/getToken`;
+  const tokenResp = await fetch(pythonTokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ room_name: roomName }),
+    body: JSON.stringify({
+      room: roomName,
+      identity: patientId,
+    }),
   });
 
-  if (!resp.ok) throw new Error("Failed to start room");
+  if (!tokenResp.ok) {
+    const errorText = await tokenResp.text();
+    throw new Error(`Failed to get LiveKit token: ${errorText}`);
+  }
 
-  const data = await resp.json();
+  const tokenData = await tokenResp.json();
 
+  // 6️⃣ Mettre à jour la session MongoDB avec room_name et join_token
+  session.room_name = roomName;
+  session.join_token = tokenData.token; // participantToken du backend Python
+  await session.save();
+
+  // 7️⃣ Appeler le backend Python pour démarrer le Worker IA
+  const pythonWorkerUrl = `${process.env.PYTHON_BACKEND_URL}/startWorker`;
+  const workerResp = await fetch(pythonWorkerUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      room_name: roomName,
+      identity: "assistant_psychologique", // l’IA sera cet assistant
+    }),
+  });
+
+  if (!workerResp.ok) {
+    const errorText = await workerResp.text();
+    console.warn(`Failed to start AI Worker: ${errorText}`);
+    // On ne bloque pas l'utilisateur, juste un warning
+  }
+
+  // 8️⃣ Retourner les infos pour le front React
   return {
     room_name: roomName,
-    join_token: data.participantToken,
-    server_url: data.serverUrl,
+    join_token: tokenData.token,
+    server_url: process.env.LIVEKIT_URL,
   };
 }
+
 
 }
 

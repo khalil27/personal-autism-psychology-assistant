@@ -42,19 +42,25 @@ exports.joinSession = async (req, res) => {
     // 🔹 Log des données entrantes
     console.log("Join request received:", { sessionId, patientId });
 
+    // 🔹 Appel du service joinSession
     const result = await sessionService.joinSession(sessionId, patientId);
 
-    // 🔹 Log du résultat du service
-    console.log("joinSession result:", result);
+    // 🔹 Log du résultat
+    console.log("joinSession result:", {
+      room_name: result.room_name,
+      join_token: result.join_token,
+      server_url: result.server_url,
+    });
 
+    // 🔹 Retourne les infos au front
     res.status(200).json({
       message: "Room ready",
       room_name: result.room_name,
       join_token: result.join_token,
-      server_url: process.env.LIVEKIT_URL,
+      server_url: result.server_url,
     });
   } catch (error) {
-    // 🔹 Log de l'erreur
+    // 🔹 Log détaillé de l'erreur
     console.error("Failed to join session:", error.message, error.stack);
 
     res.status(400).json({ error: error.message });
