@@ -106,13 +106,14 @@ const PatientSessions: React.FC = () => {
     const res = await sessionsAPI.join(sessionId); 
     const { room_name, join_token, server_url } = res;
 
-    // Rediriger vers le front LiveKit en encodant les paramètres
+    // Redirige vers le front 3000 en passant les paramètres reçus
     window.location.href = `/livekit-room?room=${encodeURIComponent(room_name)}&token=${encodeURIComponent(join_token)}&server=${encodeURIComponent(server_url)}`;
   } catch (error) {
     console.error('Failed to join session:', error);
     alert('Impossible de rejoindre la session pour le moment.');
   }
 };
+
 
 
 

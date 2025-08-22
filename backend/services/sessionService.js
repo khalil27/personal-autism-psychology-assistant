@@ -192,33 +192,33 @@ async createSession(sessionData) {
     }
   }
 
-    async joinSession(sessionId, patientId) {
+  async joinSession(sessionId, patientId) {
   const session = await Session.findOne({ id: sessionId });
   if (!session) throw new Error("Session not found");
   if (session.patient_id.toString() !== patientId) throw new Error("Unauthorized");
   if (session.status !== "active") throw new Error("Session not active");
 
-  // Nom de la room
   const roomName = `session_${session.id}`;
-
-  // Appel backend Python pour démarrer l'agent
   const pythonUrl = process.env.PYTHON_BACKEND_URL + "/join-room";
+
   console.log("Calling Python backend at:", pythonUrl);
   const resp = await fetch(pythonUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ roomName }),
+    body: JSON.stringify({ room_name: roomName }),
   });
+
   if (!resp.ok) throw new Error("Failed to start room");
 
   const data = await resp.json();
-  // data doit contenir participantToken et serverUrl
+
   return {
     room_name: roomName,
     join_token: data.participantToken,
     server_url: data.serverUrl,
   };
 }
+
 }
 
 module.exports = new SessionService()
