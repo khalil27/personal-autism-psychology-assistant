@@ -58,14 +58,6 @@ npm run dev
 
 4. Ouvrir [http://localhost:5173](http://localhost:5173) dans votre navigateur
 
-## 🔐 Comptes de Démonstration
-
-Pour tester l'application, utilisez ces identifiants :
-
-- **Patient**: `patient@example.com` (mot de passe : n'importe lequel)
-- **Médecin**: `doctor@example.com` (mot de passe : n'importe lequel)  
-- **Admin**: `admin@example.com` (mot de passe : n'importe lequel)
-
 ## 📱 Interface Utilisateur
 
 ### Design System

@@ -4,6 +4,7 @@ import { Calendar, Clock, Plus, User, CheckCircle, XCircle, AlertCircle } from '
 import { Session } from '../../types';
 import { sessionsAPI, usersAPI } from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { useNavigate } from "react-router-dom";
 
 const PatientSessions: React.FC = () => {
   const { user } = useAuth();
@@ -11,6 +12,8 @@ const PatientSessions: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const navigate = useNavigate();
+
   const [newSessionData, setNewSessionData] = useState({
     doctor_id: '',
     start_time: '',
@@ -101,20 +104,17 @@ const PatientSessions: React.FC = () => {
     }
   };
 
-  const handleJoinSession = async (sessionId: string) => {
+const handleJoinSession = async (sessionId: string) => {
   try {
-    const res = await sessionsAPI.join(sessionId); 
-    const { room_name, join_token, server_url } = res;
+    await sessionsAPI.join(sessionId); 
+    // pas besoin de récupérer room_name etc ici, ça sera fait dans SessionPage
 
-    // Redirige vers le front 3000 en passant les paramètres reçus
-    window.location.href = `/livekit-room?room=${encodeURIComponent(room_name)}&token=${encodeURIComponent(join_token)}&server=${encodeURIComponent(server_url)}`;
+    navigate(`/patient/session/${sessionId}`);
   } catch (error) {
     console.error('Failed to join session:', error);
     alert('Impossible de rejoindre la session pour le moment.');
   }
 };
-
-
 
 
   if (loading) {

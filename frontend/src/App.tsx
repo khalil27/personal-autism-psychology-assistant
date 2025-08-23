@@ -13,6 +13,7 @@ import PatientDashboard from './pages/patient/PatientDashboard';
 import PatientProfile from './pages/patient/PatientProfile';
 import PatientSessions from './pages/patient/PatientSessions';
 import PatientReports from './pages/patient/PatientReports';
+import SessionPage from './pages/patient/session/SessionPage';
 
 // Doctor pages
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
@@ -56,6 +57,11 @@ function App() {
             <Route path="/patient/reports" element={
               <ProtectedRoute allowedRoles={['patient']}>
                 <PatientReports />
+              </ProtectedRoute>
+            } />
+            <Route path="/patient/session/:sessionId" element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <SessionPage />
               </ProtectedRoute>
             } />
 
