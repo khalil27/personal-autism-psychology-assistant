@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { App } from '../../../components/LiveKit/app';
+import { App } from '../../../components/LiveKit/App';
 import { getAppConfig } from '../../../lib/utils';
 import type { AppConfig } from '../../../lib/types';
+
 import { sessionsAPI } from '../../../services/api'; // à adapter selon ton API
 
 const SessionPage: React.FC = () => {
