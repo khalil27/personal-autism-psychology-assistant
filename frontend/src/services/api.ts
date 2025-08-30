@@ -128,8 +128,10 @@ export const sessionsAPI = {
     return res.data.session;
   },
 
-  // POST /api/sessions/:id/join
-join: async (id: string): Promise<{ room_name: string; join_token: string; server_url: string }> => {
+// POST /api/sessions/:id/join
+join: async (
+  id: string
+): Promise<{ room_name: string; join_token: string; server_url: string }> => {
   const res = await api.post(`/sessions/${id}/join`);
   return res.data;
 },

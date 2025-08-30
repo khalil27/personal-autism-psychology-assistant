@@ -7,6 +7,8 @@ from flask_cors import CORS
 from livekit import api
 
 load_dotenv(".env.local")
+AGENT_DIR = r"C:\Users\khalil\Desktop\personal-autism-psychology-assistant\agent-starter-python-main\src"
+
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000"])
@@ -46,25 +48,23 @@ def get_connection_details():
 # ------------------ Endpoint pour connecter l'agent à une room ------------------
 AGENT_RUNNING = False
 
+AGENT_CONTEXT = {}
+
 @app.route("/connectAgent", methods=["POST"])
 def connect_agent():
-    global AGENT_RUNNING
-    if AGENT_RUNNING:
-        return jsonify({"status": "Agent already running"}), 200
-
     data = request.json
     room_name = data.get("room")
+    profile = data.get("profile")
+
     if not room_name:
         return jsonify({"error": "room required"}), 400
+    if not profile:
+        return jsonify({"error": "profile required"}), 400
 
-    # Lance l'agent en mode "connect" pour cette room
-    subprocess.Popen(
-        ["python", "agent.py", "connect", "--room", room_name, "--identity", "agent1"],
-        shell=True
-    )
+    # ✅ Sauvegarder le profil dans un "contexte partagé"
+    AGENT_CONTEXT[room_name] = profile
 
-    AGENT_RUNNING = True
-    return jsonify({"status": f"Agent connecting to room {room_name}"}), 200
+    return jsonify({"status": f"Agent ready for room {room_name}", "profile": profile}), 200
 
 
 if __name__ == "__main__":

@@ -106,15 +106,20 @@ const PatientSessions: React.FC = () => {
 
 const handleJoinSession = async (sessionId: string) => {
   try {
-    await sessionsAPI.join(sessionId); 
-    // pas besoin de récupérer room_name etc ici, ça sera fait dans SessionPage
+    const { room_name, join_token } = await sessionsAPI.join(sessionId);
 
-    navigate(`/patient/session/${sessionId}`);
+    localStorage.setItem("livekitRoom", room_name);
+    localStorage.setItem("livekitToken", join_token);
+    localStorage.setItem("livekitName", `user_${sessionId}`);
+
+    // Redirection vers le front LiveKit
+    window.location.assign(`http://localhost:3000/#/room/${room_name}?token=${join_token}`);
   } catch (error) {
-    console.error('Failed to join session:', error);
-    alert('Impossible de rejoindre la session pour le moment.');
+    console.error(error);
+    alert("Impossible de rejoindre la session pour le moment.");
   }
 };
+
 
 
   if (loading) {

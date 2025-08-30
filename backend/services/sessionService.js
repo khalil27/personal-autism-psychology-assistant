@@ -1,5 +1,6 @@
 const Session = require("../models/Session")
 const User = require("../models/User")
+const patientProfileService = require("../services/patientProfileService");
 const { LiveKitServerSDK } = require('livekit-server-sdk');
 const fetch = require("node-fetch");
 require("dotenv").config()
@@ -193,29 +194,32 @@ async createSession(sessionData) {
   }
 
 async joinSession(sessionId, patientId) {
-  // 1️⃣ Récupérer la session
+  // 1️⃣ Vérifier la session
   const session = await Session.findOne({ id: sessionId });
   if (!session) throw new Error("Session not found");
 
-  // 2️⃣ Vérifier l'autorisation du patient
-  if (session.patient_id.toString() !== patientId)
+  if (session.patient_id.toString() !== patientId) {
     throw new Error("Unauthorized");
+  }
 
-  // 3️⃣ Vérifier le statut de la session
-  if (session.status !== "active") throw new Error("Session not active");
+  if (session.status !== "active") {
+    throw new Error("Session not active");
+  }
 
-  // 4️⃣ Créer un nom de room unique
   const roomName = `session_${session.id}`;
 
-  // 5️⃣ Appeler le backend Python pour générer le token LiveKit
-  const pythonTokenUrl = `${process.env.PYTHON_BACKEND_URL}/getToken`;
+  // 2️⃣ Charger le profil patient
+  const patientProfile = await patientProfileService.getPatientProfileByUserId(patientId);
+  if (!patientProfile) {
+    throw new Error("Patient profile not found");
+  }
+
+  // 3️⃣ Demander un token LiveKit au backend Python
+  const pythonTokenUrl = `${process.env.PYTHON_BACKEND_URL}/getConnectionDetails`;
   const tokenResp = await fetch(pythonTokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      room: roomName,
-      identity: patientId,
-    }),
+    body: JSON.stringify({ room: roomName, identity: patientId }),
   });
 
   if (!tokenResp.ok) {
@@ -225,37 +229,37 @@ async joinSession(sessionId, patientId) {
 
   const tokenData = await tokenResp.json();
 
-  // 6️⃣ Mettre à jour la session MongoDB avec room_name et join_token
+  // 4️⃣ Sauvegarder les infos dans la session
   session.room_name = roomName;
-  session.join_token = tokenData.token; // participantToken du backend Python
+  session.join_token = tokenData.participantToken;
   await session.save();
 
-  // 7️⃣ Appeler le backend Python pour démarrer le Worker IA
-  const pythonWorkerUrl = `${process.env.PYTHON_BACKEND_URL}/startWorker`;
+  // 5️⃣ Lancer l’agent IA avec le profil patient
+  const pythonWorkerUrl = `${process.env.PYTHON_BACKEND_URL}/connectAgent`;
   const workerResp = await fetch(pythonWorkerUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      room_name: roomName,
-      identity: "assistant_psychologique", // l’IA sera cet assistant
+      room: roomName,
+      identity: "assistant_psychologique",
+      profile: patientProfile, // <<-- on envoie le profil complet
     }),
   });
 
   if (!workerResp.ok) {
     const errorText = await workerResp.text();
     console.warn(`Failed to start AI Worker: ${errorText}`);
-    // On ne bloque pas l'utilisateur, juste un warning
   }
 
-  // 8️⃣ Retourner les infos pour le front React
+  // 6️⃣ Retourner les infos nécessaires au front
   return {
     room_name: roomName,
-    join_token: tokenData.token,
-    server_url: process.env.LIVEKIT_URL,
+    join_token: tokenData.participantToken,
+    server_url: tokenData.serverUrl,       // URL WebSocket LiveKit
   };
 }
-
-
 }
+
+
 
 module.exports = new SessionService()
