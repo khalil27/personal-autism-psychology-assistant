@@ -5,6 +5,10 @@ from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from flask_cors import CORS
 from livekit import api
+import logging
+logger = logging.getLogger("server")
+logging.basicConfig(level=logging.INFO)
+
 
 load_dotenv(".env.local")
 AGENT_DIR = r"C:\Users\khalil\Desktop\personal-autism-psychology-assistant\agent-starter-python-main\src"
@@ -61,11 +65,25 @@ def connect_agent():
     if not profile:
         return jsonify({"error": "profile required"}), 400
 
-    # ✅ Sauvegarder le profil dans un "contexte partagé"
+    # Sauvegarder le profil côté serveur
     AGENT_CONTEXT[room_name] = profile
+    
 
-    return jsonify({"status": f"Agent ready for room {room_name}", "profile": profile}), 200
+    return jsonify({"status": f"Agent ready for room {room_name}"}), 200
 
+# ------------------ Endpoint pour récupérer le profil d'une room ------------------
+@app.route("/getProfile", methods=["GET"])
+def get_profile():
+    room_name = request.args.get("room")
+    if not room_name:
+        return jsonify({"error": "room required"}), 400
+
+    profile = AGENT_CONTEXT.get(room_name)
+    if not profile:
+        return jsonify({"error": "profile not found"}), 404
+    
+    logger.info("📌 Profil sauvegardé pour %s: %s", room_name, profile)
+    return jsonify({"profile": profile})
 
 if __name__ == "__main__":
     app.run(port=5001, debug=True)

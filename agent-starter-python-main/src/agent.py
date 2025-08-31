@@ -1,5 +1,4 @@
 import logging
-import json
 from dotenv import load_dotenv
 from livekit.agents import Agent, AgentSession, RoomInputOptions, JobContext, WorkerOptions, cli, metrics, JobProcess
 from livekit.agents.llm import function_tool
@@ -39,19 +38,27 @@ def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
 
 # ----------------- Entrypoint de l'agent -----------------
+from server import AGENT_CONTEXT
+
+import aiohttp  # pour faire des requêtes asynchrones vers le serveur Flask
+
 async def entrypoint(ctx: JobContext):
-    # --- Récupérer le profil patient ---
-    profile_str = getattr(ctx.room, "metadata", "{}")
-    try:
-        profile = json.loads(profile_str)
-    except (TypeError, json.JSONDecodeError):
-        profile = {}
+    room_name = ctx.room.name
+    profile = {}
+
+    # Requête vers ton serveur pour récupérer le profil
+    server_url = "http://localhost:5001/getProfile"  # tu vas créer cet endpoint dans Flask
+    async with aiohttp.ClientSession() as session:
+        async with session.get(server_url, params={"room": room_name}) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                profile = data.get("profile", {})
     
-    # 🔹 Affichage console pour vérification
-    logger.info("Patient profile received: %s", profile)
+    logger.info("📌 Profil reçu dans agent.py: %s", profile)
 
     profile_text = (
         f"Patient profile:\n"
+        f"- Name: {profile.get('user_id', {}).get('name', 'N/A')} {profile.get('user_id', {}).get('last_name', '')}\n"
         f"- Age: {profile.get('age', 'N/A')}\n"
         f"- Gender: {profile.get('gender', 'N/A')}\n"
         f"- Occupation: {profile.get('occupation', 'N/A')}\n"
@@ -59,7 +66,6 @@ async def entrypoint(ctx: JobContext):
         f"- Marital Status: {profile.get('marital_status', 'N/A')}\n"
         f"- Notes: {profile.get('notes', '')}\n"
     )
-
     # --- Crée la session Agent avec Google LLM ---
     session = AgentSession(
         stt=deepgram.STT(model="nova-3", language="multi"),
