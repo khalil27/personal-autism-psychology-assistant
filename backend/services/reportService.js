@@ -6,49 +6,59 @@ class ReportService {
 // Create new report
 async createReport(reportData) {
   try {
-    // 1️⃣ Vérifier que la session existe
-    const session = await Session.findOne({ id: reportData.session_id })
+    // Vérifier que la session existe
+    const session = await Session.findById(reportData.session_id)
     if (!session) {
-      throw new Error("Session not found")
+      throw new Error("Session not found");
     }
 
-    // 2️⃣ Construire le rapport structuré
+    // Construire le rapport structuré selon le schema mongoose
     const structuredReport = {
       session_id: reportData.session_id,
+      patient_id: reportData.patient_id,
       overview: {
-        client_name: reportData.overview?.client_name || "Unknown",
-        age: reportData.overview?.age || "N/A",
-        setting: reportData.overview?.setting || "",
-        session_number: reportData.overview?.session_number || "",
+        name: reportData.overview?.name || "Unknown",
+        age: reportData.overview?.age || null,
+        gender: reportData.overview?.gender || "",
+        occupation: reportData.overview?.occupation || "",
+        education_level: reportData.overview?.education_level || "",
+        marital_status: reportData.overview?.marital_status || "",
+        session_info: reportData.overview?.session_info || "",
         initial_diagnosis: reportData.overview?.initial_diagnosis || "",
-        assessment_tool: reportData.overview?.assessment_tool || "",
-        score_intake: reportData.overview?.score_intake || null,
-        score_current: reportData.overview?.score_current || null,
+        scores: reportData.overview?.scores || []
       },
-      narrative: reportData.narrative || "",
-      assessment: {
-        symptom_severity: reportData.assessment?.symptom_severity || "",
-        behavioral_markers: reportData.assessment?.behavioral_markers || [],
-        physical_symptoms: reportData.assessment?.physical_symptoms || [],
+      narrative: {
+        description: reportData.narrative?.description || "",
+        symptoms_observed: reportData.narrative?.symptoms_observed || [],
+        physical_markers: reportData.narrative?.physical_markers || [],
+        behavioral_markers: reportData.narrative?.behavioral_markers || []
       },
-      risk_indicators: reportData.risk_indicators || [],
+      risk_indicators: {
+        suicidal_ideation: reportData.risk_indicators?.suicidal_ideation || "",
+        substance_use: reportData.risk_indicators?.substance_use || "",
+        pregnancy: reportData.risk_indicators?.pregnancy || "",
+        family_history: reportData.risk_indicators?.family_history || "",
+        other_risks: reportData.risk_indicators?.other_risks || []
+      },
+      clinical_inference: {
+        primary_diagnosis: reportData.clinical_inference?.primary_diagnosis || "",
+        differential_diagnoses: reportData.clinical_inference?.differential_diagnoses || [],
+        recommendations: reportData.clinical_inference?.recommendations || []
+      },
       dialogue: reportData.dialogue || [],
-      conclusion: {
-        clinical_inference: reportData.conclusion?.clinical_inference || "",
-        recommendations: reportData.conclusion?.recommendations || [],
-      },
       doctor_notes: reportData.doctor_notes || "",
-      notified_to_doctor: reportData.notified_to_doctor || false,
-    }
+      notified_to_doctor: reportData.notified_to_doctor || false
+    };
 
-    // 3️⃣ Enregistrer
-    const report = new Report(structuredReport)
-    await report.save()
-    return report
+    // Enregistrer
+    const report = new Report(structuredReport);
+    await report.save();
+    return report;
   } catch (error) {
-    throw error
+    throw error;
   }
 }
+
 
 
 // Get all reports

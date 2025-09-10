@@ -57,15 +57,10 @@ router.get(
 );
 
 // POST /api/reports - Créer un nouveau rapport (depuis AI)
-router.post("/", async (req, res) => {
-  try {
-    // L'IA envoie le rapport complet dans req.body
-    const report = await ReportController.createReport(req.body);
-    res.status(201).json({ success: true, report });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
+router.post("/", (req, res) => {
+  ReportController.createReport(req, res);
 });
+
 
 
 // PUT /api/reports/:id - Mettre à jour un rapport (doctor & admin seulement)
