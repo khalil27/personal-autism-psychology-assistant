@@ -140,18 +140,25 @@ join: async (
 
 // Reports API
 export const reportsAPI = {
-  // GET /api/reports
+  // GET /api/reports - Admin & Doctor -> tous les rapports, Patient -> seulement les siens (si backend filtré)
   getAll: async (): Promise<Report[]> => {
     const res = await api.get('/reports');
-    return res.data.reports || res.data; // selon ta réponse backend
+    return res.data.reports || res.data;
   },
 
-  // POST /api/reports
+  // GET /api/reports/patient/:patientId - Rapports d'un patient spécifique
+  getByPatientId: async (patientId: string): Promise<Report[]> => {
+    const res = await api.get(`/reports/patient/${patientId}`);
+    return res.data.reports || [];
+  },
+
+  // POST /api/reports - Créer un rapport
   create: async (data: Omit<Report, 'id' | 'created_at'>): Promise<Report> => {
     const res = await api.post('/reports', data);
     return res.data.report;
   },
 };
+
 
 // Notifications API
 export const notificationsAPI = {

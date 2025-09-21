@@ -122,6 +122,15 @@ class ReportController {
     }
   }
 
+   async getReportsByPatientId(patientId) {
+    try {
+      const reports = await ReportService.getReportsByPatientId(patientId);
+      return reports;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
+
 }
 
 module.exports = new ReportController()

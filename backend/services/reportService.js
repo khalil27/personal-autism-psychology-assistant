@@ -323,6 +323,43 @@ async deleteReport(id) {
   }
 }
 
+// Get reports by patient ID
+async getReportsByPatientId(patientId) {
+  try {
+    const reports = await Report.find({ patient_id: patientId })
+      .populate({
+        path: "session_id",
+        populate: [
+          { path: "patient_id", select: "name last_name email" },
+          { path: "doctor_id", select: "name last_name email" },
+        ],
+      })
+      .sort({ created_at: -1 });
+
+    if (!reports || reports.length === 0) {
+      throw new Error("No reports found for this patient");
+    }
+
+    // Retourner un tableau propre avec les rapports
+    return reports.map((report) => ({
+      id: report.id,
+      session: report.session_id,
+      overview: report.overview,
+      narrative: report.narrative,
+      assessment: report.assessment,
+      risk_indicators: report.risk_indicators,
+      dialogue: report.dialogue,
+      conclusion: report.conclusion,
+      doctor_notes: report.doctor_notes,
+      notified_to_doctor: report.notified_to_doctor,
+      created_at: report.created_at,
+      updated_at: report.updated_at,
+    }));
+  } catch (error) {
+    throw error;
+  }
+}
+
 }
 
 module.exports = new ReportService()

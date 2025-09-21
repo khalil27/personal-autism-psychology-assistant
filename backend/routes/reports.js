@@ -93,4 +93,27 @@ router.delete(
   }
 );
 
+// GET /api/reports/patient/:patientId - Récupérer tous les rapports d'un patient
+router.get(
+  "/patient/:patientId",
+  authenticateToken,
+  authorizeRoles("admin", "doctor", "patient"),
+  async (req, res) => {
+    try {
+      const { patientId } = req.params;
+
+      // 🔥 Si c'est un patient, vérifier qu'il ne demande pas les rapports d'un autre
+      if (req.user.role === "patient" && req.user.id !== patientId) {
+        return res.status(403).json({ success: false, message: "Access denied" });
+      }
+
+      const result = await ReportController.getReportsByPatientId(patientId);
+      res.status(200).json({ success: true, reports: result });
+    } catch (error) {
+      res.status(404).json({ success: false, message: error.message });
+    }
+  }
+);
+
+
 module.exports = router;
