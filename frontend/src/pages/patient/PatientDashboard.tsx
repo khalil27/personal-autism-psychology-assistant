@@ -19,7 +19,7 @@ const PatientDashboard: React.FC = () => {
     try {
       const [sessionsData, reportsData] = await Promise.all([
         sessionsAPI.getAll(),
-        reportsAPI.getAll(),
+        reportsAPI.getByPatientId(user!.id),
       ]);
       
       // Filter sessions for current patient

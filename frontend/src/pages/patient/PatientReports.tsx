@@ -83,10 +83,10 @@ const PatientReports: React.FC = () => {
                         Session Report - {new Date(report.created_at).toLocaleDateString()}
                       </h3>
                       <div className="flex items-center text-gray-600 space-x-4 text-sm mb-3">
-                        {report.session && report.session.doctor_name && (
+                        {report.session?.doctor?.name && (
                           <div className="flex items-center">
                             <User className="w-4 h-4 mr-1" />
-                            Dr. {report.session.doctor_name}
+                            Dr. {report.session.doctor.name}
                           </div>
                         )}
                         {report.session && report.session.start_time && (

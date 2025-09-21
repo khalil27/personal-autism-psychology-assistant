@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Calendar, Clock, Plus, User, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Plus, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { Session } from '../../types';
 import { sessionsAPI, usersAPI } from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { useNavigate } from "react-router-dom";
 
 const PatientSessions: React.FC = () => {
   const { user } = useAuth();
@@ -12,7 +11,6 @@ const PatientSessions: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [doctors, setDoctors] = useState<any[]>([]);
-  const navigate = useNavigate();
 
   const [newSessionData, setNewSessionData] = useState({
     doctor_id: '',

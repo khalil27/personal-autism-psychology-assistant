@@ -36,60 +36,59 @@ def log_conversation(ctx):
     print(f"[DEBUG] Current conversation_history: {ctx.proc.userdata.get('conversation_history', [])}")
     sys.stdout.flush()
 
+def convert_sets(obj):
+    """Convertit tous les sets dans l'objet en listes pour JSON."""
+    if isinstance(obj, set):
+        return list(obj)
+    if isinstance(obj, dict):
+        return {k: convert_sets(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [convert_sets(i) for i in obj]
+    return obj
+
 # ----------------- Rapport -----------------
 @function_tool
-async def generate_diagnostic_report(context: JobContext):
-    print(f"[DEBUG] generate_diagnostic_report called with context type: {type(context)}")
+async def generate_diagnostic_report(context):
     logger.info("📌 generate_diagnostic_report called for context: %s", context)
 
+    # Récupération du session_id
     session_id = getattr(getattr(context, 'room', None), 'name', None)
-    print(f"[DEBUG] session_id extracted from context: {session_id}")
     logger.info("⚙️ Generating report for session_id=%s", session_id)
-
-    if session_id not in AGENT_SESSIONS:
-        logger.error("❌ Aucun contexte trouvé pour la session %s", session_id)
-    else:
-        logger.info("✅ Contexte trouvé pour la session %s", session_id)
 
     profile = context.proc.userdata.get("patient_profile", {})
     conversation_history = context.proc.userdata.get("conversation_history", [])
 
-    logger.info("⚙️ Generating report for patient: %s", profile.get("name", "Unknown"))
-    print(f"[DEBUG] profile in report: {profile}")
-    print(f"[DEBUG] conversation_history in report: {conversation_history}")
-
+    # Création du dialogue structuré
     dialogue = [
         {"speaker": "AI", "text": i["question"]} if "question" in i else {"speaker": "Patient", "text": i["answer"]}
         for i in conversation_history
     ]
 
-    llm_client = google.LLM(model="gemini-2.5-flash", temperature=0.5, max_output_tokens=500)
+    # Création du prompt
     conversation_text = "\n".join([f"{d['speaker']}: {d['text']}" for d in dialogue])
-
     prompt = (
         f"You are Dr. Mira, a compassionate psychologist. "
-        f"Based on the following conversation and patient profile, generate a JSON object with fields:\n"
-        f"- narrative: {{description, symptoms_observed, physical_markers, behavioral_markers}}\n"
-        f"- risk_indicators: {{suicidal_ideation, substance_use, pregnancy, family_history, other_risks}}\n"
-        f"- clinical_inference: {{primary_diagnosis, differential_diagnoses, recommendations}}\n\n"
+        f"Generate a JSON object with fields: narrative, risk_indicators, clinical_inference.\n"
         f"Patient profile: {json.dumps(profile)}\n"
         f"Conversation:\n{conversation_text}"
     )
 
+    # Appel LLM Google
     try:
-        logger.info("⚙️ Sending prompt to AI for summary...")
-        response = await llm_client.generate_content(prompt)
-        ai_summary = response.text or ""
+        llm_client = google.LLM(model="gemini-2.5-flash", temperature=0.5, max_output_tokens=500)
+        response = await llm_client.chat(prompt)
+        ai_summary = response.output_text or ""
         summary_json = json.loads(ai_summary)
         logger.info("✅ AI summary parsed successfully")
-    except (json.JSONDecodeError, Exception) as e:
-        logger.warning("⚠️ AI response invalid, using fallback. Error: %s", e)
+    except Exception as e:
+        logger.warning("⚠️ AI response invalid or error: %s", e)
         summary_json = {
             "narrative": {"description": "Résumé automatique", "symptoms_observed": [], "physical_markers": [], "behavioral_markers": []},
             "risk_indicators": {"suicidal_ideation": "None reported", "substance_use": "Unknown", "pregnancy": "N/A", "family_history": "N/A", "other_risks": []},
             "clinical_inference": {"primary_diagnosis": "Preliminary assessment", "differential_diagnoses": [], "recommendations": ["Consultation recommandée"]}
         }
 
+    # Construction du rapport
     report = {
         "session_id": session_id,
         "patient_id": profile.get("id", "unknown"),
@@ -112,13 +111,14 @@ async def generate_diagnostic_report(context: JobContext):
         "notified_to_doctor": True,
     }
 
-    logger.info("📌 Report generated for: %s", report["overview"]["name"])
-    print(f"[DEBUG] Report generated: {report}")
+    # ✅ Log du rapport avant envoi
+    pretty_report = json.dumps(convert_sets(report), indent=2, ensure_ascii=False)
+    logger.info("📝 Generated Report (to be sent):\n%s", pretty_report)
 
+    # Envoi au backend
     backend_url = "http://localhost:5000/api/reports"
     async with aiohttp.ClientSession() as session:
         try:
-            logger.info("💬 Sending report to backend at %s", backend_url)
             async with session.post(backend_url, json=report) as resp:
                 body = await resp.text()
                 if resp.status in [200, 201]:
