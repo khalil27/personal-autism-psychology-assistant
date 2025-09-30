@@ -17,7 +17,7 @@ const reportSchema = new mongoose.Schema(
     id: { type: String, default: uuidv4, unique: true, required: true },
 
     session_id: { type: String, required: true, ref: "Session" },
-    patient_id: { type: String, required: true, ref: "Patient" },
+    patient_id: { type: String, required: true, ref: "PatientProfile" },
     generated_by: { type: String, default: "AI_Assistant" },
     status: { type: String, enum: ["draft", "finalized", "reviewed"], default: "draft" },
     version: { type: Number, default: 1 },

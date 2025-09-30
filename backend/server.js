@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 3000
 app.use(helmet())
 // CORS - Autoriser les requêtes cross-origin avec cookies
 app.use(cors({
-  origin: "http://localhost:5173",  // autorise uniquement cette origine
+  origin: ["http://localhost:5173", "http://localhost:3000"],  // autorise uniquement cette origine
   credentials: true                 // permet les cookies avec withCredentials
 }))
 

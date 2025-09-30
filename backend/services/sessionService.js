@@ -2,6 +2,7 @@ const Session = require("../models/Session")
 const User = require("../models/User")
 const patientProfileService = require("../services/patientProfileService");
 const { LiveKitServerSDK } = require('livekit-server-sdk');
+const mongoose = require("mongoose");
 const fetch = require("node-fetch");
 require("dotenv").config()
 
@@ -194,11 +195,11 @@ async createSession(sessionData) {
   }
 
 async joinSession(sessionId, patientId) {
-  // 1️⃣ Vérifier la session
+  // 🔹 Cherche par champ "id", pas _id
   const session = await Session.findOne({ id: sessionId });
   if (!session) throw new Error("Session not found");
 
-  if (session.patient_id.toString() !== patientId) {
+  if (!session.patient_id || session.patient_id !== patientId) {
     throw new Error("Unauthorized");
   }
 
@@ -206,15 +207,13 @@ async joinSession(sessionId, patientId) {
     throw new Error("Session not active");
   }
 
-  const roomName = `session_${session.id}`;
+  const roomName = session.id;
 
-  // 2️⃣ Charger le profil patient
   const patientProfile = await patientProfileService.getPatientProfileByUserId(patientId);
   if (!patientProfile) {
     throw new Error("Patient profile not found");
   }
 
-  // 3️⃣ Demander un token LiveKit au backend Python
   const pythonTokenUrl = `${process.env.PYTHON_BACKEND_URL}/getConnectionDetails`;
   const tokenResp = await fetch(pythonTokenUrl, {
     method: "POST",
@@ -229,12 +228,10 @@ async joinSession(sessionId, patientId) {
 
   const tokenData = await tokenResp.json();
 
-  // 4️⃣ Sauvegarder les infos dans la session
   session.room_name = roomName;
   session.join_token = tokenData.participantToken;
   await session.save();
 
-  // 5️⃣ Lancer l’agent IA avec le profil patient
   const pythonWorkerUrl = `${process.env.PYTHON_BACKEND_URL}/connectAgent`;
   const workerResp = await fetch(pythonWorkerUrl, {
     method: "POST",
@@ -242,7 +239,7 @@ async joinSession(sessionId, patientId) {
     body: JSON.stringify({
       room: roomName,
       identity: "assistant_psychologique",
-      profile: patientProfile, // <<-- on envoie le profil complet
+      profile: patientProfile,
     }),
   });
 
@@ -251,15 +248,13 @@ async joinSession(sessionId, patientId) {
     console.warn(`Failed to start AI Worker: ${errorText}`);
   }
 
-  // 6️⃣ Retourner les infos nécessaires au front
   return {
     room_name: roomName,
     join_token: tokenData.participantToken,
-    server_url: tokenData.serverUrl,       // URL WebSocket LiveKit
+    server_url: tokenData.serverUrl,
+    session_id: session.id,
   };
 }
 }
-
-
 
 module.exports = new SessionService()

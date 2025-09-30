@@ -10,20 +10,7 @@ router.get(
   "/",
   authenticateToken,
   authorizeRoles("admin", "doctor"),
-  async (req, res) => {
-    try {
-      const { page, limit, notified_to_doctor, session_id } = req.query;
-      const result = await ReportController.getAllReports({
-        page,
-        limit,
-        notified_to_doctor,
-        session_id,
-      });
-      res.status(200).json(result);
-    } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
-    }
-  }
+  ReportController.getAllReports
 );
 
 // GET /api/reports/:id - Récupérer un rapport par son ID

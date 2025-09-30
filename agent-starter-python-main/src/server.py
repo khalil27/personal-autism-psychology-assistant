@@ -9,7 +9,7 @@ from flask_cors import CORS
 from livekit import api
 
 # Importer ton agent (AGENT_SESSIONS doit contenir des JobContext)
-from agent import AGENT_SESSIONS, generate_diagnostic_report
+from agent import AGENT_SESSIONS  # 🔥 on n'importe plus generate_diagnostic_report
 
 # ------------------ Configuration Logging ------------------
 logger = logging.getLogger("server")
@@ -106,51 +106,15 @@ def get_profile():
     logger.info(f"📌 Profil récupéré pour room '{room_name}': {profile}")
     return jsonify({"profile": profile})
 
+# ------------------ Désactivation de la génération côté backend ------------------
+"""
 @app.route("/api/reports/generate", methods=["POST"])
 def generate_report():
-    """
-    Déclenche la génération d'un rapport côté agent.
-    """
-    data = request.json or {}
-    logger.info(f"📨 [generateReport] Payload brut reçu: {data}")
-    logger.info(f"📂 Etat actuel de AGENT_CONTEXT: {AGENT_CONTEXT}")
-    logger.info(f"📋 Sessions actives côté agent: {list(AGENT_SESSIONS.keys())}")
-
-    session_id = data.get("session_id")
-    if not session_id:
-        return error_response("session_id required")
-
-    # ✅ Récupère le contexte depuis AGENT_CONTEXT
-    profile_context = AGENT_CONTEXT.get(session_id)
-    if not profile_context:
-        logger.warning(f"⚠️ Aucun profil trouvé pour session {session_id}, génération forcée avec contexte vide.")
-        profile_context = {}
-
-    # Transforme le dict en un objet compatible avec generate_diagnostic_report
-    class DummyProc:
-        def __init__(self, userdata):
-            self.userdata = userdata
-
-    class DummyContext:
-        def __init__(self, profile):
-            self.proc = DummyProc({"patient_profile": profile})
-
-    context_obj = DummyContext(profile_context)
-
-    try:
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(generate_diagnostic_report(context_obj))
-        except RuntimeError:
-            # Si pas de loop courant (cas Flask), crée un loop temporaire
-            asyncio.run(generate_diagnostic_report(context_obj))
-
-        logger.info(f"📢 Rapport déclenché pour la session {session_id}")
-        return jsonify({"message": f"Report generation triggered for session {session_id}"}), 200
-
-    except Exception:
-        logger.exception("❌ Échec de la génération du rapport")
-        return error_response("Failed to trigger report generation", 500)
+    # ❌ Cette route est désormais désactivée.
+    # ❌ L'agent ne génère plus de rapport côté backend.
+    # ❌ Toute la logique est maintenant côté front.
+    return jsonify({"message": "Report generation disabled. Frontend should handle this now."}), 200
+"""
 
 if __name__ == "__main__":
     logger.info("🚀 Démarrage du serveur Flask sur http://localhost:5001")

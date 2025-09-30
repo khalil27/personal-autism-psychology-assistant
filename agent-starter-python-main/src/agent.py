@@ -3,11 +3,11 @@ import sys
 import asyncio
 import aiohttp
 import json
-from datetime import datetime
+import os
+import re
+from google import genai
 from dotenv import load_dotenv
-
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli
-from livekit.agents.llm import function_tool
 from livekit.plugins import deepgram, silero, google, speechify
 
 # ---------------- Logging ----------------
@@ -18,12 +18,16 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+# ---------------- Env variables ----------------
 load_dotenv(".env.local")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GENAI_API_KEY = os.getenv("GENAI_API_KEY")
+client = genai.Client(api_key=GENAI_API_KEY)
 
 # ----------------- Global sessions -----------------
-AGENT_SESSIONS = {}  # dictionnaire global pour stocker chaque JobContext
+AGENT_SESSIONS = {}
 
-# ----------------- Helper : Log conversation -----------------
+# ----------------- Helper -----------------
 def log_conversation(ctx):
     conv = ctx.proc.userdata.get("conversation_history", [])
     logger.info("===== Conversation =====")
@@ -37,7 +41,6 @@ def log_conversation(ctx):
     sys.stdout.flush()
 
 def convert_sets(obj):
-    """Convertit tous les sets dans l'objet en listes pour JSON."""
     if isinstance(obj, set):
         return list(obj)
     if isinstance(obj, dict):
@@ -46,89 +49,80 @@ def convert_sets(obj):
         return [convert_sets(i) for i in obj]
     return obj
 
-# ----------------- Rapport -----------------
-@function_tool
-async def generate_diagnostic_report(context):
-    logger.info("📌 generate_diagnostic_report called for context: %s", context)
 
-    # Récupération du session_id
-    session_id = getattr(getattr(context, 'room', None), 'name', None)
-    logger.info("⚙️ Generating report for session_id=%s", session_id)
-
-    profile = context.proc.userdata.get("patient_profile", {})
-    conversation_history = context.proc.userdata.get("conversation_history", [])
-
-    # Création du dialogue structuré
-    dialogue = [
-        {"speaker": "AI", "text": i["question"]} if "question" in i else {"speaker": "Patient", "text": i["answer"]}
-        for i in conversation_history
-    ]
-
-    # Création du prompt
-    conversation_text = "\n".join([f"{d['speaker']}: {d['text']}" for d in dialogue])
+async def generate_report_with_gemini(profile, dialogue, session_id):
     prompt = (
-        f"You are Dr. Mira, a compassionate psychologist. "
-        f"Generate a JSON object with fields: narrative, risk_indicators, clinical_inference.\n"
-        f"Patient profile: {json.dumps(profile)}\n"
-        f"Conversation:\n{conversation_text}"
+        "You are Dr. Mira, a compassionate psychologist. "
+        "Based on the following patient profile and dialogue, generate a complete session report in JSON "
+        "with the exact following structure:\n\n"
+        "{\n"
+        "  \"session_id\": \"<session_id>\",\n"
+        "  \"patient_id\": \"<patient_id>\",\n"
+        "  \"overview\": {\n"
+        "    \"name\": \"<full name>\",\n"
+        "    \"age\": <age>,\n"
+        "    \"gender\": \"<gender>\",\n"
+        "    \"occupation\": \"<occupation>\",\n"
+        "    \"education_level\": \"<education level>\",\n"
+        "    \"marital_status\": \"<marital status>\",\n"
+        "    \"session_info\": \"Session <session_id> - Consultation\",\n"
+        "    \"initial_diagnosis\": \"<diagnosis>\",\n"
+        "    \"scores\": [\n"
+        "      {\"tool\": \"<tool>\", \"intake\": <intake>, \"current\": <current>}\n"
+        "    ]\n"
+        "  },\n"
+        "  \"narrative\": {\n"
+        "    \"description\": \"<short description>\",\n"
+        "    \"symptoms_observed\": [\"<symptom1>\", \"<symptom2>\"] ,\n"
+        "    \"physical_markers\": [\"<marker1>\", \"<marker2>\"] ,\n"
+        "    \"behavioral_markers\": [\"<behavior1>\", \"<behavior2>\"]\n"
+        "  },\n"
+        "  \"risk_indicators\": {\n"
+        "    \"suicidal_ideation\": \"<value>\",\n"
+        "    \"substance_use\": \"<value>\",\n"
+        "    \"pregnancy\": \"<value>\",\n"
+        "    \"family_history\": \"<value>\",\n"
+        "    \"other_risks\": [\"<risk1>\", \"<risk2>\"]\n"
+        "  },\n"
+        "  \"clinical_inference\": {\n"
+        "    \"primary_diagnosis\": \"<primary diagnosis>\",\n"
+        "    \"differential_diagnoses\": [\"<diagnosis1>\", \"<diagnosis2>\"] ,\n"
+        "    \"recommendations\": [\"<recommendation1>\", \"<recommendation2>\"]\n"
+        "  },\n"
+        "  \"dialogue\": <dialogue>,\n"
+        "  \"doctor_notes\": \"<doctor notes>\",\n"
+        "  \"notified_to_doctor\": true\n"
+        "}\n\n"
+        f"Patient profile: {json.dumps(profile, indent=2)}\n"
+        f"Dialogue: {json.dumps(dialogue, indent=2)}\n"
+        f"Session ID: {session_id}\n\n"
+        "Return only the JSON object without any extra text."
     )
 
-    # Appel LLM Google
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    logger.info(f"💬 Gemini raw response: {response}")
+    text = getattr(response, "text", str(response))
+    logger.info(f"💬 Gemini raw text: {text}")
+
+    # 🔍 Extraire uniquement le JSON
     try:
-        llm_client = google.LLM(model="gemini-2.5-flash", temperature=0.5, max_output_tokens=500)
-        response = await llm_client.chat(prompt)
-        ai_summary = response.output_text or ""
-        summary_json = json.loads(ai_summary)
-        logger.info("✅ AI summary parsed successfully")
+        # Enlever les backticks ```json ... ```
+        match = re.search(r"```json\s*(\{.*\})\s*```", text, re.DOTALL)
+        if match:
+            json_text = match.group(1)
+        else:
+            logger.warning("⚠️ Aucun bloc JSON trouvé, utilisation du texte brut")
+            json_text = text
+
+        return json.loads(json_text)
+
     except Exception as e:
-        logger.warning("⚠️ AI response invalid or error: %s", e)
-        summary_json = {
-            "narrative": {"description": "Résumé automatique", "symptoms_observed": [], "physical_markers": [], "behavioral_markers": []},
-            "risk_indicators": {"suicidal_ideation": "None reported", "substance_use": "Unknown", "pregnancy": "N/A", "family_history": "N/A", "other_risks": []},
-            "clinical_inference": {"primary_diagnosis": "Preliminary assessment", "differential_diagnoses": [], "recommendations": ["Consultation recommandée"]}
-        }
-
-    # Construction du rapport
-    report = {
-        "session_id": session_id,
-        "patient_id": profile.get("id", "unknown"),
-        "overview": {
-            "name": profile.get("name", "Unknown"),
-            "age": profile.get("age"),
-            "gender": profile.get("gender", ""),
-            "occupation": profile.get("occupation", ""),
-            "education_level": profile.get("education_level", ""),
-            "marital_status": profile.get("marital_status", ""),
-            "session_info": f"Session - {datetime.now().strftime('%Y-%m-%d')}",
-            "initial_diagnosis": "Pending",
-            "scores": [],
-        },
-        "narrative": summary_json.get("narrative", {}),
-        "risk_indicators": summary_json.get("risk_indicators", {}),
-        "clinical_inference": summary_json.get("clinical_inference", {}),
-        "dialogue": dialogue,
-        "doctor_notes": "Dr. Mira",
-        "notified_to_doctor": True,
-    }
-
-    # ✅ Log du rapport avant envoi
-    pretty_report = json.dumps(convert_sets(report), indent=2, ensure_ascii=False)
-    logger.info("📝 Generated Report (to be sent):\n%s", pretty_report)
-
-    # Envoi au backend
-    backend_url = "http://localhost:5000/api/reports"
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(backend_url, json=report) as resp:
-                body = await resp.text()
-                if resp.status in [200, 201]:
-                    logger.info("✅ Report saved successfully: %s", body)
-                else:
-                    logger.error("❌ Error saving report (%s): %s", resp.status, body)
-        except Exception as e:
-            logger.error("❌ Backend request failed: %s", e)
-
-    return report
+        logger.error(f"❌ Error parsing Gemini output: {e}")
+        return {}
 
 # ----------------- Pré-chargement -----------------
 def prewarm(proc):
@@ -143,9 +137,10 @@ def prewarm(proc):
 # ----------------- Entrypoint -----------------
 async def entrypoint(ctx: JobContext):
     room_name = ctx.room.name
+    logger.info(f"📌 Entrypoint started for room: {room_name}")
     print(f"[DEBUG] Entrypoint started. Room name: {room_name}")
-    logger.info("📌 Entrypoint started for room: %s", room_name)
 
+    # Charger le profil patient
     server_url = "http://localhost:5001/getProfile"
     profile = {}
 
@@ -156,11 +151,11 @@ async def entrypoint(ctx: JobContext):
                     data = await resp.json()
                     profile = data.get("profile", {})
                     if profile:
-                        logger.info("✅ Profile loaded successfully on attempt %d", attempt + 1)
+                        logger.info(f"✅ Profile loaded successfully on attempt {attempt + 1}")
                         print(f"[DEBUG] Profile loaded: {profile}")
                         break
         if not profile:
-            logger.warning("⚠️ Profil vide, tentative %d/5...", attempt + 1)
+            logger.warning(f"⚠️ Profil vide, tentative {attempt + 1}/5...")
             await asyncio.sleep(0.5)
 
     ctx.proc.userdata["patient_profile"] = {
@@ -173,14 +168,14 @@ async def entrypoint(ctx: JobContext):
         "marital_status": profile.get("marital_status"),
         "notes": profile.get("notes", ""),
     }
-    logger.info("📌 Patient profile set: %s", ctx.proc.userdata["patient_profile"])
-    print(f"[DEBUG] Patient profile stored in ctx.proc.userdata: {ctx.proc.userdata['patient_profile']}")
+    logger.info(f"📌 Patient profile set: {ctx.proc.userdata['patient_profile']}")
+    print(f"[DEBUG] Patient profile stored: {ctx.proc.userdata['patient_profile']}")
 
     AGENT_SESSIONS[room_name] = ctx
-    logger.info("📌 Session added to AGENT_SESSIONS: %s", room_name)
+    logger.info(f"📌 Session added to AGENT_SESSIONS: {room_name}")
     print(f"[DEBUG] AGENT_SESSIONS keys now: {list(AGENT_SESSIONS.keys())}")
 
-    # --- Création de la session Agent ---
+    # Création de la session agent
     session_agent = AgentSession(
         stt=deepgram.STT(model="nova-3", language="multi"),
         llm=google.LLM(model="gemini-2.5-flash", temperature=0.7, max_output_tokens=500),
@@ -189,43 +184,51 @@ async def entrypoint(ctx: JobContext):
         use_tts_aligned_transcript=True,
     )
 
-    # --- Handlers conversation ---
-    async def handle_transcription(event):
-        text = getattr(event, "text", "").strip()
-        participant = getattr(event, "participant", None)
-        if text:
-            ctx.proc.userdata["conversation_history"].append({"answer": text})
-            logger.info("💬 Patient (STT) %s: %s", participant, text)
-            log_conversation(ctx)
+    # Gestion du report-request
+    def handle_report_request(reader, participant_identity):
+        async def process_report_request():
+            async for chunk in reader:
+                try:
+                    text = chunk.decode("utf-8") if isinstance(chunk, (bytes, bytearray)) else str(chunk)
+                    logger.info(f"📩 Report request received: {text}")
 
-    session_agent.stt.on("transcription", lambda e: asyncio.create_task(handle_transcription(e)))
+                    data = json.loads(text)
+                    if data.get("type") != "GENERATE_REPORT":
+                        logger.warning("⚠️ Type incorrect pour le rapport")
+                        continue
 
-    async def async_handle_text_stream(reader, participant_identity):
-        async for chunk in reader:
-            text_chunk = chunk.decode("utf-8") if isinstance(chunk, (bytes, bytearray)) else str(chunk)
-            ctx.proc.userdata["conversation_history"].append({"answer": text_chunk})
-            logger.info("💬 Patient (Stream) %s: %s", participant_identity, text_chunk)
-            log_conversation(ctx)
+                    dialogue = data["data"]["dialogue"]
+                    session_id = data["data"]["meta"]["sessionId"]
 
-    def handle_text_stream(reader, participant_identity):
-        asyncio.create_task(async_handle_text_stream(reader, participant_identity))
+                    logger.info(f"📝 Génération du rapport pour session {session_id}")
 
-    for topic_name in ["chat", "messages", "default"]:
-        try:
-            ctx.room.register_text_stream_handler(topic_name, handle_text_stream)
-            logger.info("✅ Registered text stream handler for topic='%s'", topic_name)
-        except Exception as e:
-            logger.warning("⚠️ Could not register handler for topic='%s': %s", topic_name, e)
+                    report = await generate_report_with_gemini(
+                        ctx.proc.userdata["patient_profile"],
+                        dialogue,
+                        session_id
+                    )
 
-    def llm_callback(event):
-        text = getattr(event, "text", None)
-        if text:
-            ctx.proc.userdata["conversation_history"].append({"question": text})
-            logger.info("🤖 AI: %s", text)
-            log_conversation(ctx)
+                    logger.info(f"🖨 Rapport structuré prêt :\n{json.dumps(report, indent=2)}")
 
-    session_agent.llm.on("message", llm_callback)
+                    # -------------------- Envoi au backend --------------------
+                    backend_url = "http://localhost:5000/api/reports"
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(backend_url, json=report) as resp:
+                            if resp.status in (200, 201):
+                                logger.info("✅ Rapport envoyé au backend avec succès")
+                                print("[DEBUG] Rapport envoyé au backend")
+                            else:
+                                logger.error(f"❌ Échec envoi rapport au backend: {resp.status} - {await resp.text()}")
 
+                except Exception as e:
+                    logger.error(f"❌ Erreur traitement report-request: {e}")
+
+        asyncio.create_task(process_report_request())
+
+    ctx.room.register_text_stream_handler("report-request", handle_report_request)
+    logger.info("✅ Registered report-request handler")
+
+    # Instructions
     profile_info = json.dumps(ctx.proc.userdata["patient_profile"], indent=2)
     instructions = (
         "You are Dr. Mira, a compassionate psychologist conducting a short interview. "
@@ -239,6 +242,7 @@ async def entrypoint(ctx: JobContext):
 
     agent = Agent(instructions=instructions)
 
+    # Démarrage session agent
     await session_agent.start(agent=agent, room=ctx.room)
     await ctx.connect()
     await session_agent.say("Hello, my name is Dr. Mira. I will ask you a few quick questions about how you feel.")

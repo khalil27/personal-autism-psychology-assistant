@@ -20,29 +20,28 @@ class ReportController {
     }
   }
 
-  // Récupérer tous les rapports
   async getAllReports(req, res) {
-    try {
-      const options = {
-        page: req.query.page,
-        limit: req.query.limit,
-        notified_to_doctor: req.query.notified_to_doctor,
-        session_id: req.query.session_id,
-      }
-
-      const reports = await ReportService.getAllReports(options)
-      return res.status(200).json({
-        success: true,
-        data: reports,
-      })
-    } catch (error) {
-      console.error("Error fetching reports:", error)
-      return res.status(400).json({
-        success: false,
-        message: error.message || "Failed to fetch reports",
-      })
+  try {
+    const options = {
+      page: parseInt(req.query.page) || 1,   // valeur par défaut = 1
+      limit: parseInt(req.query.limit) || 10, // valeur par défaut = 10
+      notified_to_doctor: req.query.notified_to_doctor,
+      session_id: req.query.session_id,
     }
+
+    const reports = await ReportService.getAllReports(options)
+    return res.status(200).json({
+      success: true,
+      data: reports,
+    })
+  } catch (error) {
+    console.error("Error fetching reports:", error)
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to fetch reports",
+    })
   }
+}
 
   // Récupérer un rapport par son ID
   async getReportById(req, res) {

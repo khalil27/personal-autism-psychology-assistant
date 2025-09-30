@@ -6,8 +6,8 @@ class ReportService {
 // Create new report
 async createReport(reportData) {
   try {
-    // Vérifier que la session existe
-    const session = await Session.findById(reportData.session_id)
+    // ✅ Chercher par id (UUID), pas par _id
+    const session = await Session.findOne({ id: reportData.session_id });
     if (!session) {
       throw new Error("Session not found");
     }
@@ -54,11 +54,12 @@ async createReport(reportData) {
     const report = new Report(structuredReport);
     await report.save();
     return report;
+
   } catch (error) {
+    console.error("Error creating report:", error);
     throw error;
   }
 }
-
 
 
 // Get all reports
@@ -326,39 +327,41 @@ async deleteReport(id) {
 // Get reports by patient ID
 async getReportsByPatientId(patientId) {
   try {
+    // On garde populate sur patient_id, pas sur session_id
     const reports = await Report.find({ patient_id: patientId })
-      .populate({
-        path: "session_id",
-        populate: [
-          { path: "patient_id", select: "name last_name email" },
-          { path: "doctor_id", select: "name last_name email" },
-        ],
-      })
+      .populate({ path: "patient_id", select: "name last_name email" }) // ✅ fonctionne car ObjectId
       .sort({ created_at: -1 });
 
-    if (!reports || reports.length === 0) {
-      throw new Error("No reports found for this patient");
-    }
+    // Ensuite on récupère la session manuellement car c'est un UUID string
+    const enrichedReports = await Promise.all(
+      reports.map(async (report) => {
+        const session = await Session.findOne({ id: report.session_id }); // id = UUID string
 
-    // Retourner un tableau propre avec les rapports
-    return reports.map((report) => ({
-      id: report.id,
-      session: report.session_id,
-      overview: report.overview,
-      narrative: report.narrative,
-      assessment: report.assessment,
-      risk_indicators: report.risk_indicators,
-      dialogue: report.dialogue,
-      conclusion: report.conclusion,
-      doctor_notes: report.doctor_notes,
-      notified_to_doctor: report.notified_to_doctor,
-      created_at: report.created_at,
-      updated_at: report.updated_at,
-    }));
+        return {
+          id: report.id,
+          session, // ⚡ session récupérée manuellement
+          patient: report.patient_id, // déjà populé
+          overview: report.overview,
+          narrative: report.narrative,
+          assessment: report.assessment,
+          risk_indicators: report.risk_indicators,
+          dialogue: report.dialogue,
+          conclusion: report.conclusion,
+          doctor_notes: report.doctor_notes,
+          notified_to_doctor: report.notified_to_doctor,
+          created_at: report.created_at,
+          updated_at: report.updated_at,
+        };
+      })
+    );
+
+    return enrichedReports;
   } catch (error) {
+    console.error("❌ Error fetching reports:", error);
     throw error;
   }
 }
+
 
 }
 
