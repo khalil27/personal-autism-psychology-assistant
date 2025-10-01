@@ -5,6 +5,16 @@ import { Session, Report, PatientProfile } from '../../types';
 import { sessionsAPI, reportsAPI, patientProfilesAPI } from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
+type ReportsResponse = {
+  reports: Report[];
+  pagination: {
+    current_page: number;
+    total_pages: number;
+    total_reports: number;
+    per_page: number;
+  };
+};
+
 const DoctorDashboard: React.FC = () => {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -18,33 +28,37 @@ const DoctorDashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      const [sessionsData, reportsData, patientsData] = await Promise.all([
-        sessionsAPI.getAll(),
-        reportsAPI.getAll(),
-        patientProfilesAPI.getAll(),
+      const [sessionsData, reportsDataResponseRaw, patientsData] = await Promise.all([
+        sessionsAPI.getAll() as Promise<Session[]>,
+        reportsAPI.getAll() as unknown, // 👈 on ignore temporairement le type ici
+        patientProfilesAPI.getAll() as Promise<PatientProfile[]>,
       ]);
-      
-      // Filter sessions for current doctor
-      const doctorSessions = sessionsData.filter(s => {
-  if (typeof s.doctor_id === 'string') {
-    return s.doctor_id === user?.id;
-  } else if (typeof s.doctor_id === 'object') {
-    return s.doctor_id.id === user?.id;
-  }
-  return false;
-});
 
-setSessions(doctorSessions);
-      
+      // ⚡ Cast propre vers ReportsResponse
+      const reportsDataResponse = reportsDataResponseRaw as ReportsResponse;
+      const reportsData: Report[] = reportsDataResponse?.reports || [];
+
+      // Filter sessions for current doctor
+      const doctorSessions = sessionsData.filter((s: Session) => {
+        if (typeof s.doctor_id === 'string') {
+          return s.doctor_id === user?.id;
+        } else if (typeof s.doctor_id === 'object' && s.doctor_id.id) {
+          return s.doctor_id.id === user?.id;
+        }
+        return false;
+      });
+      setSessions(doctorSessions);
+
       // Filter reports for doctor's sessions
       const sessionIds = doctorSessions.map(s => s.id);
-      const doctorReports = reportsData.filter(r => sessionIds.includes(r.session_id));
+      const doctorReports = reportsData.filter((r: Report) => sessionIds.includes(r.session?.id || r.session_id));
       setReports(doctorReports);
-      
+
       // Get patients for doctor's sessions
       const patientIds = doctorSessions.map(s => s.patient_id);
-      const doctorPatients = patientsData.filter(p => patientIds.includes(p.user_id));
+      const doctorPatients = patientsData.filter((p: PatientProfile) => patientIds.includes(p.user_id));
       setPatients(doctorPatients);
+
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -72,7 +86,6 @@ setSessions(doctorSessions);
   const pendingSessions = sessions.filter(s => s.status === 'pending');
   const upcomingSessions = sessions.filter(s => s.status === 'active');
   const completedSessions = sessions.filter(s => s.status === 'completed');
-  //const pendingReports = reports.filter(r => !r.notified_to_doctor);
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -73,41 +73,45 @@ async getAllReports(options = {}) {
       filter.notified_to_doctor = notified_to_doctor
     }
     if (session_id) {
-      filter.session_id = session_id
+      filter.session_id = session_id // ici c’est bien un UUID string
     }
 
-    // 2️⃣ Récupérer les rapports
+    // 2️⃣ Récupérer les rapports (sans populate de session, juste brut)
     const reports = await Report.find(filter)
-      .populate({
-        path: "session_id",
-        populate: [
-          { path: "patient_id", select: "name last_name email" },
-          { path: "doctor_id", select: "name last_name email" },
-        ],
-      })
       .limit(Number(limit))
       .skip((page - 1) * limit)
       .sort({ created_at: -1 })
 
-    // 3️⃣ Compter le total
+    // 3️⃣ Enrichir manuellement avec la session
+    const enrichedReports = await Promise.all(
+      reports.map(async (report) => {
+        const session = await Session.findOne({ id: report.session_id }) // UUID string
+          .populate("patient_id", "name last_name email")
+          .populate("doctor_id", "name last_name email")
+
+        return {
+          id: report.id,
+          session: session, // session enrichie
+          overview: report.overview,
+          narrative: report.narrative,
+          assessment: report.assessment,
+          risk_indicators: report.risk_indicators,
+          dialogue: report.dialogue,
+          conclusion: report.conclusion,
+          doctor_notes: report.doctor_notes,
+          notified_to_doctor: report.notified_to_doctor,
+          created_at: report.created_at,
+          updated_at: report.updated_at,
+        }
+      })
+    )
+
+    // 4️⃣ Compter le total
     const total = await Report.countDocuments(filter)
 
-    // 4️⃣ Retourner la structure complète
+    // 5️⃣ Retourner la structure complète
     return {
-      reports: reports.map((r) => ({
-        id: r.id,
-        session: r.session_id,
-        overview: r.overview,
-        narrative: r.narrative,
-        assessment: r.assessment,
-        risk_indicators: r.risk_indicators,
-        dialogue: r.dialogue,
-        conclusion: r.conclusion,
-        doctor_notes: r.doctor_notes,
-        notified_to_doctor: r.notified_to_doctor,
-        created_at: r.created_at,
-        updated_at: r.updated_at,
-      })),
+      reports: enrichedReports,
       pagination: {
         current_page: Number.parseInt(page),
         total_pages: Math.ceil(total / limit),
